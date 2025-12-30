@@ -1,0 +1,357 @@
+/* Register Page Styles */
+.register-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.register-branding-panel {
+  display: none;
+  width: 50%;
+  background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+  padding: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .register-branding-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+}
+
+.register-branding-bg::before,
+.register-branding-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  filter: blur(80px);
+}
+
+.register-branding-bg::before {
+  width: 256px;
+  height: 256px;
+  top: 80px;
+  left: 80px;
+}
+
+.register-branding-bg::after {
+  width: 384px;
+  height: 384px;
+  bottom: 80px;
+  right: 80px;
+}
+
+.register-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 10;
+}
+
+.register-logo-icon {
+  width: 48px;
+  height: 48px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.register-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+  position: relative;
+  z-index: 10;
+}
+
+.register-subtitle {
+  color: #ecfdf5;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  max-width: 400px;
+  position: relative;
+  z-index: 10;
+}
+
+.register-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  position: relative;
+  z-index: 10;
+}
+
+.register-feature-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.register-feature-icon {
+  width: 32px;
+  height: 32px;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.register-feature-text {
+  color: #ecfdf5;
+  font-size: 0.875rem;
+}
+
+.register-form-panel {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .register-form-panel {
+    width: 50%;
+  }
+}
+
+.register-form-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.register-mobile-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .register-mobile-logo {
+    display: none;
+  }
+}
+
+.register-form-card {
+  background: #1e293b;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  padding: 2rem;
+  border: 1px solid #334155;
+}
+
+.register-form-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.register-form-subtitle {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.register-error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: #fca5a5;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.register-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.register-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+}
+
+.register-form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.register-form-input::placeholder {
+  color: #64748b;
+}
+
+.register-form-input:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.register-form-input:hover {
+  border-color: #475569;
+}
+
+.register-password-container {
+  position: relative;
+}
+
+.register-password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.register-password-toggle:hover {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: #475569;
+  color: #94a3b8;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.register-password-toggle:active {
+  transform: translateY(-50%) scale(0.95);
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.register-submit-button {
+  width: 100%;
+  background: #059669;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.3);
+  margin-top: 1rem;
+}
+
+.register-submit-button:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(5, 150, 105, 0.4);
+}
+
+.register-submit-button:active {
+  transform: translateY(0);
+}
+
+.register-submit-button:disabled {
+  background: #059669;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.register-form-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.register-form-link {
+  color: #059669;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.register-form-link:hover {
+  color: #047857;
+}
+
+.register-security-note {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.register-container {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.register-branding-panel {
+  animation: slideInLeft 0.8s ease-out 0.2s both;
+}
+
+.register-form-card {
+  animation: slideInRight 0.8s ease-out 0.4s both;
+}
