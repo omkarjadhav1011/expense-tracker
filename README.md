@@ -41,14 +41,143 @@ This project is designed following **industry-standard architecture**, clean Git
 ## 📁 Project Structure
 
 ```text
-Expense_tracker/
+expense-tracker/
 │
-├── backend/                 # Spring Boot backend
+├── backend/                           # Spring Boot Backend
+│   │
 │   ├── src/
-│   └── pom.xml
+│   │   ├── main/
+│   │   │   ├── java/com/omkar/expensetracker/
+│   │   │   │
+│   │   │   │   ├── ExpenseTrackerApplication.java
+│   │   │   │
+│   │   │   │   ├── config/               # App + Security configuration
+│   │   │   │   │   ├── SecurityConfig.java
+│   │   │   │   │   ├── JwtConfig.java
+│   │   │   │   │   └── CorsConfig.java
+│   │   │   │
+│   │   │   │   ├── controller/           # REST Controllers (API layer)
+│   │   │   │   │   ├── AuthController.java
+│   │   │   │   │   ├── ExpenseController.java
+│   │   │   │   │   └── CategoryController.java
+│   │   │   │
+│   │   │   │   ├── dto/                  # Request / Response DTOs
+│   │   │   │   │   ├── request/
+│   │   │   │   │   │   ├── LoginRequest.java
+│   │   │   │   │   │   └── ExpenseRequest.java
+│   │   │   │   │   └── response/
+│   │   │   │   │       ├── JwtResponse.java
+│   │   │   │   │       └── ExpenseResponse.java
+│   │   │   │
+│   │   │   │   ├── entity/               # JPA Entities
+│   │   │   │   │   ├── User.java
+│   │   │   │   │   ├── Expense.java
+│   │   │   │   │   └── Category.java
+│   │   │   │
+│   │   │   │   ├── repository/           # Data access layer
+│   │   │   │   │   ├── UserRepository.java
+│   │   │   │   │   ├── ExpenseRepository.java
+│   │   │   │   │   └── CategoryRepository.java
+│   │   │   │
+│   │   │   │   ├── service/              # Business logic
+│   │   │   │   │   ├── AuthService.java
+│   │   │   │   │   ├── ExpenseService.java
+│   │   │   │   │   └── CategoryService.java
+│   │   │   │
+│   │   │   │   ├── service/impl/          # Service implementations
+│   │   │   │   │   ├── AuthServiceImpl.java
+│   │   │   │   │   └── ExpenseServiceImpl.java
+│   │   │   │
+│   │   │   │   ├── security/             # JWT filters & utils
+│   │   │   │   │   ├── JwtAuthenticationFilter.java
+│   │   │   │   │   ├── JwtTokenProvider.java
+│   │   │   │   │   └── UserDetailsServiceImpl.java
+│   │   │   │
+│   │   │   │   ├── exception/            # Global exception handling
+│   │   │   │   │   ├── GlobalExceptionHandler.java
+│   │   │   │   │   └── ResourceNotFoundException.java
+│   │   │   │
+│   │   │   │   └── util/                 # Utilities & helpers
+│   │   │   │       ├── DateUtils.java
+│   │   │   │       └── MapperUtil.java
+│   │   │
+│   │   └── resources/
+│   │       ├── application.yml
+│   │       ├── application-dev.yml
+│   │       ├── application-prod.yml
+│   │       └── data.sql
+│   │
+│   ├── src/test/java/                     # Unit & integration tests
+│   ├── pom.xml
+│   └── README.md
 │
-├── frontend/                # React frontend
+├── frontend/                             # React Frontend (Vite)
+│   │
+│   ├── public/
+│   │   └── index.html
+│   │
 │   ├── src/
-│   └── package.json
+│   │   ├── api/                          # Axios API calls
+│   │   │   ├── axiosInstance.js
+│   │   │   ├── authApi.js
+│   │   │   └── expenseApi.js
+│   │   │
+│   │   ├── app/                          # App-level configs
+│   │   │   ├── store.js
+│   │   │   └── rootReducer.js
+│   │   │
+│   │   ├── assets/                       # Images, icons
+│   │   │
+│   │   ├── components/                   # Reusable UI components
+│   │   │   ├── Button/
+│   │   │   ├── Input/
+│   │   │   ├── Modal/
+│   │   │   └── Loader/
+│   │   │
+│   │   ├── features/                     # Feature-based modules (KEY)
+│   │   │   ├── auth/
+│   │   │   │   ├── Login.jsx
+│   │   │   │   ├── Register.jsx
+│   │   │   │   └── authSlice.js
+│   │   │   │
+│   │   │   ├── expense/
+│   │   │   │   ├── ExpenseList.jsx
+│   │   │   │   ├── AddExpense.jsx
+│   │   │   │   ├── ExpenseChart.jsx
+│   │   │   │   └── expenseSlice.js
+│   │   │   │
+│   │   │   └── dashboard/
+│   │   │       ├── Dashboard.jsx
+│   │   │       └── SummaryCards.jsx
+│   │   │
+│   │   ├── hooks/                        # Custom hooks
+│   │   │   ├── useAuth.js
+│   │   │   └── useDebounce.js
+│   │   │
+│   │   ├── layouts/                      # Page layouts
+│   │   │   ├── MainLayout.jsx
+│   │   │   └── AuthLayout.jsx
+│   │   │
+│   │   ├── routes/                       # Routing
+│   │   │   ├── AppRoutes.jsx
+│   │   │   └── ProtectedRoute.jsx
+│   │   │
+│   │   ├── styles/
+│   │   │   └── globals.css
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── dateUtils.js
+│   │   │   └── currencyUtils.js
+│   │   │
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   │
+│   ├── package.json
+│   ├── vite.config.js
+│   └── README.md
 │
-└── README.md
+├── .gitignore
+├── README.md                             # Root project README
+└── docker-compose.yml (optional, future)
+
