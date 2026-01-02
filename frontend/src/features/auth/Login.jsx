@@ -27,8 +27,7 @@ const Login = () => {
       const response = await authApi.login(formData);
       localStorage.setItem('token', response.token);
       // Redirect to dashboard or home
-      alert('Login successful!');
-      // window.location.href = '/dashboard';
+      window.location.href = '/home';
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
