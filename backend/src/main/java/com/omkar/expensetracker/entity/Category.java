@@ -30,4 +30,12 @@ public class Category {
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }

@@ -10,6 +10,8 @@ import com.omkar.expensetracker.service.CategoryService;
 import com.omkar.expensetracker.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.Map;
+import com.omkar.expensetracker.util.DefaultCategoryProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -90,4 +92,30 @@ public class CategoryServiceImpl implements CategoryService {
                 .type(category.getType())
                 .build();
     }
+
+    public void createDefaultCategoriesForUser(User user) {
+
+        Map<CategoryType, List<String>> defaults =
+                DefaultCategoryProvider.getDefaultCategories();
+
+        defaults.forEach((type, names) -> {
+            names.forEach(name -> {
+
+                boolean exists = categoryRepository
+                        .existsByUserAndNameAndType(user, name, type);
+
+                if (!exists) {
+                    Category category = Category.builder()
+                            .name(name)
+                            .type(type)
+                            .user(user)
+                            .isDefault(true)
+                            .build();
+
+                    categoryRepository.save(category);
+                }
+            });
+        });
+    }
+
 }
