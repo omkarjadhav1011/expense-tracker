@@ -20,18 +20,18 @@ public class AuthController {
         this.authService = authService;
     }
 
-    // ✅ REGISTER ENDPOINT (MISSING BEFORE)
+    //  REGISTER ENDPOINT
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 
-        authService.register(request);
+        authService.registerUser(request);
 
         return ResponseEntity.ok(
                 Map.of("message", "User registered successfully")
         );
     }
 
-    // ✅ LOGIN ENDPOINT
+    // LOGIN ENDPOINT
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
 
