@@ -20,6 +20,10 @@ import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.repository.specification.TransactionSpecification;
 import org.springframework.data.jpa.domain.Specification;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 import java.time.LocalDate;
 import java.math.BigDecimal;
 
@@ -199,6 +203,40 @@ public class TransactionServiceImpl implements TransactionService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    @Override
+    public Page<TransactionResponse> getTransactionsPaged(
+            TransactionType type,
+            LocalDate startDate,
+            LocalDate endDate,
+            Long categoryId,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            int page,
+            int size,
+            String sortBy,
+            String direction
+    ) {
+
+        User user = authUtil.getLoggedInUser();
+
+        Sort sort = direction.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        PageRequest pageable = PageRequest.of(page, size, sort);
+
+        Specification<Transaction> spec =
+                Specification
+                        .where(TransactionSpecification.belongsToUser(user.getId()))
+                        .and(TransactionSpecification.hasType(type))
+                        .and(TransactionSpecification.hasDateBetween(startDate, endDate))
+                        .and(TransactionSpecification.hasCategory(categoryId))
+                        .and(TransactionSpecification.hasAmountBetween(minAmount, maxAmount));
+
+        return transactionRepository.findAll(spec, pageable)
+                .map(this::mapToResponse);
     }
 
 }
