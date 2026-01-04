@@ -52,4 +52,12 @@ public class TransactionController {
                 transactionService.getAllTransactions()
         );
     }
+
+    // Get Transaction by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<TransactionResponse> getTransactionById(@PathVariable Long id) {
+        return ResponseEntity.ok(
+                transactionService.getTransactionById(id)
+        );
+    }
 }

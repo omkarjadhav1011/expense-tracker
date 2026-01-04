@@ -14,4 +14,6 @@ public interface TransactionService {
     void deleteTransaction(Long transactionId);
 
     List<TransactionResponse> getAllTransactions();
+
+    TransactionResponse getTransactionById(Long transactionId);
 }

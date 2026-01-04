@@ -94,6 +94,18 @@ public class TransactionServiceImpl implements TransactionService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public TransactionResponse getTransactionById(Long transactionId) {
+
+        User user = authUtil.getLoggedInUser();
+
+        Transaction transaction = transactionRepository
+                .findByIdAndUser(transactionId, user)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        return mapToResponse(transaction);
+    }
+
     // MAPPER
 
     private TransactionResponse mapToResponse(Transaction transaction) {
@@ -103,6 +115,7 @@ public class TransactionServiceImpl implements TransactionService {
                 transaction.getAmount(),
                 transaction.getType(),
                 transaction.getCategory().getName(),
+                transaction.getCategory().getId(),
                 transaction.getTransactionDate(),
                 transaction.getDescription()
         );
