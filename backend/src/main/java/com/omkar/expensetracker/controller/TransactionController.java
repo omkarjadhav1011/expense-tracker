@@ -8,6 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.omkar.expensetracker.enums.TransactionType;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+
 import java.util.List;
 
 @RestController
@@ -46,12 +53,85 @@ public class TransactionController {
     }
 
     // List All Transactions
+//    @GetMapping
+//    public ResponseEntity<List<TransactionResponse>> getAllTransactions() {
+//        return ResponseEntity.ok(
+//                transactionService.getAllTransactions()
+//        );
+//    }
+
+    // List Transactions with Filters
+//    @GetMapping
+//    public ResponseEntity<List<TransactionResponse>> getTransactions(
+//            @RequestParam(required = false) TransactionType type,
+//
+//            @RequestParam(required = false)
+//            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+//            LocalDate startDate,
+//
+//            @RequestParam(required = false)
+//            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+//            LocalDate endDate
+//    ) {
+//        return ResponseEntity.ok(
+//                transactionService.getTransactions(type, startDate, endDate)
+//        );
+//    }
+
+//    @GetMapping
+//    public ResponseEntity<List<TransactionResponse>> getTransactions(
+//            @RequestParam(required = false) TransactionType type,
+//
+//            @RequestParam(required = false)
+//            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+//            LocalDate startDate,
+//
+//            @RequestParam(required = false)
+//            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+//            LocalDate endDate,
+//
+//            @RequestParam(required = false) Long categoryId
+//    ) {
+//        return ResponseEntity.ok(
+//                transactionService.getTransactions(
+//                        type,
+//                        startDate,
+//                        endDate,
+//                        categoryId
+//                )
+//        );
+//    }
+
+
     @GetMapping
-    public ResponseEntity<List<TransactionResponse>> getAllTransactions() {
+    public ResponseEntity<List<TransactionResponse>> getTransactions(
+            @RequestParam(required = false) TransactionType type,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate startDate,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate endDate,
+
+            @RequestParam(required = false) Long categoryId,
+
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount
+    ) {
         return ResponseEntity.ok(
-                transactionService.getAllTransactions()
+                transactionService.getTransactions(
+                        type,
+                        startDate,
+                        endDate,
+                        categoryId,
+                        minAmount,
+                        maxAmount
+                )
         );
     }
+
 
     // Get Transaction by ID
     @GetMapping("/{id}")
