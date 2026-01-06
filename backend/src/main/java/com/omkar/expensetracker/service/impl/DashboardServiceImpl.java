@@ -2,6 +2,7 @@ package com.omkar.expensetracker.service.impl;
 
 import com.omkar.expensetracker.dto.response.CategoryBreakdownResponse;
 import com.omkar.expensetracker.dto.response.DashboardSummaryResponse;
+import com.omkar.expensetracker.dto.response.MonthlyTrendResponse;
 import com.omkar.expensetracker.dto.response.RecentTransactionResponse;
 import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.repository.TransactionRepository;
@@ -96,6 +97,28 @@ public class DashboardServiceImpl implements DashboardService {
                 ))
                 .toList();
     }
+
+    @Override
+    public List<MonthlyTrendResponse> getMonthlyTrend(int months) {
+
+        Long userId = authUtil.getLoggedInUser().getId();
+
+        LocalDate startDate = LocalDate.now()
+                .minusMonths(months - 1)
+                .withDayOfMonth(1);
+
+        List<Object[]> results =
+                transactionRepository.getMonthlyTrend(userId, startDate);
+
+        return results.stream()
+                .map(row -> new MonthlyTrendResponse(
+                        (String) row[0],
+                        (BigDecimal) row[1],
+                        (BigDecimal) row[2]
+                ))
+                .toList();
+    }
+
 
 }
 

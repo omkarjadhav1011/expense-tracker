@@ -75,4 +75,22 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             Pageable pageable
     );
 
+
+    @Query("""
+    SELECT 
+        FUNCTION('TO_CHAR', t.transactionDate, 'YYYY-MM'),
+        SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END),
+        SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END)
+    FROM Transaction t
+    WHERE t.user.id = :userId
+      AND t.transactionDate >= :startDate
+    GROUP BY FUNCTION('TO_CHAR', t.transactionDate, 'YYYY-MM')
+    ORDER BY FUNCTION('TO_CHAR', t.transactionDate, 'YYYY-MM')
+""")
+    List<Object[]> getMonthlyTrend(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate
+    );
+
+
 }

@@ -2,6 +2,7 @@ package com.omkar.expensetracker.controller;
 
 import com.omkar.expensetracker.dto.response.CategoryBreakdownResponse;
 import com.omkar.expensetracker.dto.response.DashboardSummaryResponse;
+import com.omkar.expensetracker.dto.response.MonthlyTrendResponse;
 import com.omkar.expensetracker.dto.response.RecentTransactionResponse;
 import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.service.DashboardService;
@@ -43,6 +44,16 @@ public class DashboardController {
     ) {
         return ResponseEntity.ok(
                 dashboardService.getRecentTransactions(limit)
+        );
+    }
+
+
+    @GetMapping("/monthly-trend")
+    public ResponseEntity<List<MonthlyTrendResponse>> getMonthlyTrend(
+            @RequestParam(defaultValue = "6") int months
+    ) {
+        return ResponseEntity.ok(
+                dashboardService.getMonthlyTrend(months)
         );
     }
 
