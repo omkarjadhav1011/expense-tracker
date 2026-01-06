@@ -1,6 +1,8 @@
 package com.omkar.expensetracker.service.impl;
 
+import com.omkar.expensetracker.dto.response.CategoryBreakdownResponse;
 import com.omkar.expensetracker.dto.response.DashboardSummaryResponse;
+import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.repository.TransactionRepository;
 import com.omkar.expensetracker.service.DashboardService;
 import com.omkar.expensetracker.util.AuthUtil;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +46,33 @@ public class DashboardServiceImpl implements DashboardService {
                 income.subtract(expense)
         );
     }
+
+    @Override
+    public List<CategoryBreakdownResponse> getCategoryBreakdown(
+            TransactionType type
+    ) {
+
+        Long userId = authUtil.getLoggedInUser().getId();
+
+        LocalDate startDate = LocalDate.now().withDayOfMonth(1);
+        LocalDate endDate = LocalDate.now().withDayOfMonth(
+                LocalDate.now().lengthOfMonth()
+        );
+
+        List<Object[]> results =
+                transactionRepository.getCategoryWiseBreakdown(
+                        userId, type, startDate, endDate
+                );
+
+        return results.stream()
+                .map(row -> new CategoryBreakdownResponse(
+                        (Long) row[0],
+                        (String) row[1],
+                        (BigDecimal) row[2]
+                ))
+                .toList();
+    }
+
 
 }
 
