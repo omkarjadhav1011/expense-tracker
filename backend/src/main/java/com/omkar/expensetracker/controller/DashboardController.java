@@ -2,6 +2,7 @@ package com.omkar.expensetracker.controller;
 
 import com.omkar.expensetracker.dto.response.CategoryBreakdownResponse;
 import com.omkar.expensetracker.dto.response.DashboardSummaryResponse;
+import com.omkar.expensetracker.dto.response.RecentTransactionResponse;
 import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,15 @@ public class DashboardController {
     ) {
         return ResponseEntity.ok(
                 dashboardService.getCategoryBreakdown(type)
+        );
+    }
+
+    @GetMapping("/recent-transactions")
+    public ResponseEntity<List<RecentTransactionResponse>> getRecentTransactions(
+            @RequestParam(defaultValue = "5") int limit
+    ) {
+        return ResponseEntity.ok(
+                dashboardService.getRecentTransactions(limit)
         );
     }
 

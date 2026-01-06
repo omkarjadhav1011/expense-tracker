@@ -3,6 +3,7 @@ package com.omkar.expensetracker.repository;
 import com.omkar.expensetracker.entity.Transaction;
 import com.omkar.expensetracker.entity.User;
 import com.omkar.expensetracker.enums.TransactionType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -59,6 +60,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("type") TransactionType type,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
+    );
+
+
+    @Query("""
+    SELECT t
+    FROM Transaction t
+    JOIN FETCH t.category
+    WHERE t.user.id = :userId
+    ORDER BY t.transactionDate DESC
+""")
+    List<Transaction> findRecentTransactions(
+            @Param("userId") Long userId,
+            Pageable pageable
     );
 
 }
