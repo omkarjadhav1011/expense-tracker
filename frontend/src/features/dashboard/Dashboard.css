@@ -429,6 +429,31 @@
   margin: 0;
 }
 
+/* New Layout Styles */
+.dashboard-summary-section {
+  padding: 0 2rem 2rem 2rem;
+}
+
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.dashboard-analytics-section {
+  padding: 0 2rem 2rem 2rem;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.dashboard-transactions-section {
+  padding: 0 2rem 2rem 2rem;
+}
+
 /* Content Grid */
 .dashboard-content-grid {
   display: grid;
