@@ -1,5 +1,6 @@
 package com.omkar.expensetracker.controller;
 
+import com.omkar.expensetracker.dto.response.BudgetSummaryResponse;
 import com.omkar.expensetracker.entity.Budget;
 import com.omkar.expensetracker.service.BudgetService;
 import lombok.RequiredArgsConstructor;
@@ -36,4 +37,13 @@ public class BudgetController {
     public void deleteBudget(@PathVariable Long id) {
         budgetService.deleteBudget(id);
     }
+
+    @GetMapping("/user/{userId}/{month}/summary")
+    public BudgetSummaryResponse getSummary(
+            @PathVariable Long userId,
+            @PathVariable String month
+    ) {
+        return budgetService.getMonthlySummary(userId, month);
+    }
+
 }
