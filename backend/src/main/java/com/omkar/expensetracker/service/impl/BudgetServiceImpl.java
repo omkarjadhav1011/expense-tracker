@@ -1,8 +1,9 @@
 package com.omkar.expensetracker.service.impl;
 
+import com.omkar.expensetracker.dto.response.BudgetSummaryResponse;
+import com.omkar.expensetracker.dto.response.CategoryBudgetSummaryResponse;
 import com.omkar.expensetracker.entity.Budget;
 import com.omkar.expensetracker.entity.Expense;
-import com.omkar.expensetracker.dto.response.BudgetSummaryResponse;
 import com.omkar.expensetracker.repository.BudgetRepository;
 import com.omkar.expensetracker.repository.ExpenseRepository;
 import com.omkar.expensetracker.service.BudgetService;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,14 +44,17 @@ public class BudgetServiceImpl implements BudgetService {
         budgetRepository.deleteById(id);
     }
 
+    // -------------------------
+    //  MONTHLY SUMMARY
+    // -------------------------
     @Override
     public BudgetSummaryResponse getMonthlySummary(Long userId, String month) {
 
-        List<Budget> monthlyBudgets =
-                budgetRepository.findByUserIdAndMonth(userId, month);
+        List<Budget> budgets = budgetRepository.findByUserIdAndMonth(userId, month);
 
-        Double totalBudget = monthlyBudgets.stream()
+        Double totalBudget = budgets.stream()
                 .map(Budget::getAmount)
+                .filter(a -> a != null)
                 .mapToDouble(Double::doubleValue)
                 .sum();
 
@@ -56,10 +62,10 @@ public class BudgetServiceImpl implements BudgetService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
 
-        List<Expense> monthlyExpenses =
+        List<Expense> expenses =
                 expenseRepository.findByUser_IdAndDateBetween(userId, start, end);
 
-        Double totalSpent = monthlyExpenses.stream()
+        Double totalSpent = expenses.stream()
                 .map(e -> e.getAmount().doubleValue())
                 .mapToDouble(Double::doubleValue)
                 .sum();
@@ -77,5 +83,54 @@ public class BudgetServiceImpl implements BudgetService {
                 .percentageUsed(percentage)
                 .status(status)
                 .build();
+    }
+
+    // -------------------------
+    // CATEGORY-WISE SUMMARY
+    // -------------------------
+    @Override
+    public List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(Long userId, String month) {
+
+        // 1️⃣ Fetch category budgets for given month
+        List<Budget> budgets =
+                budgetRepository.findByUserIdAndMonth(userId, month)
+                        .stream()
+                        .filter(b -> b.getCategory() != null)
+                        .toList();
+
+        // 2️⃣ Fetch all expenses of that month
+        YearMonth ym = YearMonth.parse(month);
+        LocalDate start = ym.atDay(1);
+        LocalDate end = ym.atEndOfMonth();
+
+        List<Expense> expenses =
+                expenseRepository.findByUser_IdAndDateBetween(userId, start, end);
+
+        // Group expenses by category
+        Map<String, Double> spentByCategory = expenses.stream()
+                .collect(Collectors.groupingBy(
+                        e -> e.getCategory().getName(),
+                        Collectors.summingDouble(e -> e.getAmount().doubleValue())
+                ));
+
+        // 3️⃣ Build category-wise summary list
+        return budgets.stream()
+                .map(budget -> {
+                    double budgetAmount = budget.getAmount();
+                    double spent = spentByCategory.getOrDefault(budget.getCategory(), 0.0);
+                    double remaining = budgetAmount - spent;
+                    double percentage = budgetAmount == 0 ? 0 : (spent / budgetAmount) * 100;
+                    String status = spent > budgetAmount ? "OVER_BUDGET" : "UNDER_BUDGET";
+
+                    return CategoryBudgetSummaryResponse.builder()
+                            .category(budget.getCategory())
+                            .budget(budgetAmount)
+                            .spent(spent)
+                            .remaining(remaining)
+                            .percentageUsed(percentage)
+                            .status(status)
+                            .build();
+                })
+                .toList();
     }
 }
