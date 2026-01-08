@@ -1,7 +1,0 @@
-spring:
-  application:
-    name: backend
-logging:
-  level:
-    root: INFO
-    com.omkar.expensetracker: DEBUG
