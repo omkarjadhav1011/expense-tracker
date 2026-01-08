@@ -1,0 +1,575 @@
+/* Transaction List Page Styles */
+.transaction-list-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 2rem;
+}
+
+.transaction-list-card {
+  background: #1e293b;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  padding: 2rem;
+  border: 1px solid #334155;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.transaction-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.transaction-list-back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.transaction-list-back-button:hover {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: #475569;
+  color: white;
+}
+
+.transaction-list-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.transaction-list-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.transaction-list-add-category-button {
+  background: #334155;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.transaction-list-add-category-button:hover {
+  background: #475569;
+  border-color: #64748b;
+  color: white;
+}
+
+.transaction-list-add-button {
+  background: #059669;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.3);
+}
+
+.transaction-list-add-button:hover {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(5, 150, 105, 0.4);
+}
+
+.transaction-list-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.transaction-list-search {
+  position: relative;
+  flex: 1;
+  min-width: 300px;
+}
+
+.transaction-list-search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.transaction-list-search-input:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.transaction-list-search-input::placeholder {
+  color: #64748b;
+}
+
+.transaction-list-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  width: 1rem;
+  height: 1rem;
+}
+
+.transaction-list-filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.transaction-list-filter-button {
+  padding: 0.5rem 1rem;
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.transaction-list-filter-button:hover {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: #475569;
+  color: white;
+}
+
+.transaction-list-filter-button.active {
+  background: #059669;
+  border-color: #059669;
+  color: white;
+}
+
+.transaction-list-table-container {
+  overflow-x: auto;
+}
+
+.transaction-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.transaction-list-table th {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  border-bottom: 1px solid #334155;
+}
+
+.transaction-list-table td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  color: white;
+}
+
+.transaction-list-table tbody tr:hover {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.transaction-list-amount-income {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.transaction-list-amount-expense {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.transaction-list-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.transaction-list-action-button {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transaction-list-edit-button {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.transaction-list-edit-button:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.transaction-list-delete-button {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.transaction-list-delete-button:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.transaction-list-empty {
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.transaction-list-empty-icon {
+  width: 4rem;
+  height: 4rem;
+  color: #334155;
+  margin-bottom: 1rem;
+}
+
+.transaction-list-empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.transaction-list-empty-text {
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.transaction-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: white;
+}
+
+.transaction-list-loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #334155;
+  border-top: 2px solid #059669;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .transaction-list-container {
+    padding: 1rem;
+  }
+
+  .transaction-list-card {
+    padding: 1.5rem;
+  }
+
+  .transaction-list-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transaction-list-title {
+    text-align: left;
+    margin-bottom: 1rem;
+  }
+
+  .transaction-list-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transaction-list-search {
+    min-width: auto;
+  }
+
+  .transaction-list-table {
+    font-size: 0.875rem;
+  }
+
+  .transaction-list-table th,
+  .transaction-list-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
+
+.transaction-list-filter-button.active.income {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.transaction-list-filter-button.active.expense {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.transaction-list-content {
+  padding: 0 2rem 4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.transaction-list-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid #334155;
+  border-radius: 16px;
+}
+
+.transaction-list-empty-text {
+  font-size: 1.125rem;
+  color: #94a3b8;
+  margin-bottom: 2rem;
+}
+
+.transaction-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid #334155;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.transaction-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+.transaction-list-item-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(51, 65, 85, 0.5);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.transaction-list-item-content {
+  flex: 1;
+}
+
+.transaction-list-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.transaction-list-item-description {
+  font-weight: 500;
+  color: white;
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.transaction-list-item-amount {
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.125rem;
+  color: #22c55e;
+}
+
+.transaction-list-item:has(.transaction-list-item-icon .text-red-500) .transaction-list-item-amount {
+  color: #ef4444;
+}
+
+.transaction-list-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.transaction-list-item-category,
+.transaction-list-item-date {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.transaction-list-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.transaction-list-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.transaction-list-action-button.edit {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.transaction-list-action-button.edit:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #2563eb;
+}
+
+.transaction-list-action-button.delete {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.transaction-list-action-button.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+.transaction-delete-modal {
+  text-align: center;
+}
+
+.transaction-delete-message {
+  color: #cbd5e1;
+  margin-bottom: 1.5rem;
+  font-size: 1.125rem;
+}
+
+.transaction-delete-details {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.transaction-delete-description {
+  color: white;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.transaction-delete-amount {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.transaction-delete-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.transaction-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 1rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.transaction-list-container {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.transaction-list-item {
+  animation: fadeIn 0.8s ease-out both;
+}
+
+.transaction-list-item:nth-child(1) { animation-delay: 0.1s; }
+.transaction-list-item:nth-child(2) { animation-delay: 0.15s; }
+.transaction-list-item:nth-child(3) { animation-delay: 0.2s; }
+.transaction-list-item:nth-child(4) { animation-delay: 0.25s; }
+.transaction-list-item:nth-child(5) { animation-delay: 0.3s; }
