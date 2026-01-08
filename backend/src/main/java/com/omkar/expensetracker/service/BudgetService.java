@@ -20,5 +20,8 @@ public interface BudgetService {
 
     List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(Long userId, String month);
 
+    void updateUsedAmount(Long userId, String month);
+
+    void updateUsedAmountByCategory(Long userId, String month, String category);
 
 }
