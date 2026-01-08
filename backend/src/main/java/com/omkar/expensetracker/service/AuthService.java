@@ -10,4 +10,6 @@ public interface AuthService {
     String login(LoginRequest request);
 
     void registerUser(RegisterRequest request);
+
+    Long getCurrentUserId();
 }
