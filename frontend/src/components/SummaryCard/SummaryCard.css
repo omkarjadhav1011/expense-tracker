@@ -1,0 +1,78 @@
+.summary-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(51, 65, 85, 0.5);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.summary-card.green::before {
+  background: linear-gradient(90deg, transparent, #10b981, transparent);
+}
+
+.summary-card.red::before {
+  background: linear-gradient(90deg, transparent, #ef4444, transparent);
+}
+
+.summary-card.neutral::before {
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+}
+
+.summary-card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.summary-card-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-card-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.25rem 0;
+}
+
+.summary-card.green .summary-card-value {
+  color: #10b981;
+}
+
+.summary-card.red .summary-card-value {
+  color: #ef4444;
+}
+
+.summary-card.neutral .summary-card-value {
+  color: #3b82f6;
+}
+
+.summary-card-subtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 400;
+}

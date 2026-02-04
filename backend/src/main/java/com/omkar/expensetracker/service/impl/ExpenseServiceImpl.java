@@ -8,10 +8,12 @@ import com.omkar.expensetracker.entity.User;
 import com.omkar.expensetracker.repository.ExpenseRepository;
 import com.omkar.expensetracker.repository.CategoryRepository;
 import com.omkar.expensetracker.repository.UserRepository;
+import com.omkar.expensetracker.service.BudgetService;
 import com.omkar.expensetracker.service.ExpenseService;
 import com.omkar.expensetracker.util.MapperUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,17 +24,26 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final BudgetService budgetService;
 
-    public ExpenseServiceImpl(ExpenseRepository expenseRepository, CategoryRepository categoryRepository, UserRepository userRepository) {
+    public ExpenseServiceImpl(
+            ExpenseRepository expenseRepository,
+            CategoryRepository categoryRepository,
+            UserRepository userRepository,
+            BudgetService budgetService
+    ) {
         this.expenseRepository = expenseRepository;
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
+        this.budgetService = budgetService;
     }
 
     @Override
     public ExpenseResponse createExpense(ExpenseRequest request, String userEmail) {
+
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
@@ -44,6 +55,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setUser(user);
 
         Expense saved = expenseRepository.save(expense);
+
+        // ⬇️ UPDATE BUDGET USAGE AFTER SAVING EXPENSE
+        String month = saved.getDate().toString().substring(0, 7);
+        budgetService.updateUsedAmount(saved.getUser().getId(), month);
+        budgetService.updateUsedAmountByCategory(saved.getUser().getId(), month, saved.getCategory().getName());
+
         return MapperUtil.mapToExpenseResponse(saved);
     }
 
@@ -52,6 +69,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     public List<ExpenseResponse> getAllExpenses(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         return expenseRepository.findByUser(user).stream()
                 .map(MapperUtil::mapToExpenseResponse)
                 .collect(Collectors.toList());
@@ -62,17 +80,22 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseResponse getExpenseById(Long id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         Expense expense = expenseRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
+
         return MapperUtil.mapToExpenseResponse(expense);
     }
 
     @Override
     public ExpenseResponse updateExpense(Long id, ExpenseRequest request, String userEmail) {
+
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         Expense expense = expenseRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
+
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
@@ -82,6 +105,12 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setDate(request.getDate());
 
         Expense saved = expenseRepository.save(expense);
+
+        // Update budget usage again
+        String month = saved.getDate().toString().substring(0, 7);
+        budgetService.updateUsedAmount(saved.getUser().getId(), month);
+        budgetService.updateUsedAmountByCategory(saved.getUser().getId(), month, saved.getCategory().getName());
+
         return MapperUtil.mapToExpenseResponse(saved);
     }
 
@@ -89,8 +118,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     public void deleteExpense(Long id, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         Expense expense = expenseRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
+
         expenseRepository.delete(expense);
     }
 }
