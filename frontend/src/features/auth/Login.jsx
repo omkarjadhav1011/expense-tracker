@@ -1,179 +1,104 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Eye, EyeOff, TrendingUp, DollarSign, PieChart, BarChart3 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../../api/authApi';
-import './Login.css';
+import AuthBrandPanel from './AuthBrandPanel';
+import mark from '../../assets/mark.png';
+import './Auth.css';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (event) => {
+    setForm({ ...form, [event.target.name]: event.target.value });
     setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await authApi.login(formData);
+      const response = await authApi.login(form);
       localStorage.setItem('token', response.token);
-      // Redirect to dashboard or home
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || 'Login failed. Check your email and password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      {/* Left Panel - Branding */}
-      <div className="login-branding-panel">
-        <div className="login-branding-bg"></div>
+    <div className="auth">
+      <AuthBrandPanel />
 
-        <div>
-          <div className="login-logo">
-            <div className="login-logo-icon">
-              <TrendingUp className="w-7 h-7 text-emerald-600" />
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <div className="auth-mobile-lockup">
+            <img src={mark} alt="" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span className="auth-brand-name" style={{ color: 'var(--fg)' }}>BudgetWise</span>
+          </div>
+
+          <h2 className="auth-title">Welcome back</h2>
+          <p className="auth-sub">Sign in to pick up where your ledger left off.</p>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="login-email">Email address</label>
+              <input
+                id="login-email"
+                className="auth-control"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
             </div>
-            <span className="text-2xl font-bold text-white">ExpenseTracker</span>
-          </div>
 
-          <h1 className="login-title">
-            Take Control of<br />Your Finances
-          </h1>
-          <p className="login-subtitle">
-            Track expenses, analyze spending patterns, and achieve your financial goals with intelligent insights.
-          </p>
-        </div>
-
-        <div className="login-features">
-          <div className="login-feature-card">
-            <DollarSign className="login-feature-icon" />
-            <p className="login-feature-text">Smart Budgeting</p>
-          </div>
-          <div className="login-feature-card">
-            <PieChart className="login-feature-icon" />
-            <p className="login-feature-text">Visual Analytics</p>
-          </div>
-          <div className="login-feature-card">
-            <BarChart3 className="login-feature-icon" />
-            <p className="login-feature-text">Detailed Reports</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Login Form */}
-      <div className="login-form-panel">
-        <div className="login-form-container">
-          {/* Mobile Logo */}
-          <div className="login-mobile-logo">
-            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">ExpenseTracker</span>
-          </div>
-
-          <div className="login-form-card">
-            <h2 className="login-form-title">
-              Welcome Back
-            </h2>
-            <p className="login-form-subtitle">
-              Enter your credentials to access your account
-            </p>
-
-            {error && (
-              <div className="login-error-message">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div className="login-form-group">
-                <label className="login-form-label">
-                  Email Address
-                </label>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="login-password">Password</label>
+              <div className="auth-password">
                 <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  id="login-password"
+                  className="auth-control"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={form.password}
                   onChange={handleChange}
-                  className="login-form-input"
-                  placeholder="you@example.com"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
                   required
                 />
-              </div>
-
-              <div className="login-form-group">
-                <label className="login-form-label">
-                  Password
-                </label>
-                <div className="login-password-container">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="login-form-input"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="login-password-toggle"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="login-form-options">
-                <label className="login-checkbox-container">
-                  <input
-                    type="checkbox"
-                    className="login-checkbox"
-                  />
-                  <span className="login-checkbox-label">Remember me</span>
-                </label>
-                <button className="login-forgot-password">
-                  Forgot password?
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((shown) => !shown)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="login-submit-button"
-              >
-                {loading ? 'Signing In...' : 'Sign In'}
-              </button>
-            </form>
-
-            <div className="login-form-footer">
-              Don't have an account?{' '}
-              <Link to="/register" className="login-form-link">
-                Sign Up
-              </Link>
             </div>
-          </div>
 
-          <p className="login-security-note">
-          </p>
+            <button type="submit" className="auth-submit" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            Don’t have an account? <Link to="/register">Create one</Link>
+          </div>
         </div>
       </div>
     </div>

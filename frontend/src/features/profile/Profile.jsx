@@ -1,165 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp, User, ArrowLeft, Save, Loader } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import userApi from '../../api/userApi';
-import Input from '../../components/Input/Input';
-import Button from '../../components/Button/Button';
+import budgetApi from '../../api/budgetApi';
+import { useAppShell } from '../../app/AppShellContext';
+import { currencySymbol, initials, toMonthKey } from '../../lib/format';
 import './Profile.css';
 
+const CURRENCIES = [
+  ['INR', 'INR — Indian Rupee'],
+  ['USD', 'USD — US Dollar'],
+  ['EUR', 'EUR — Euro'],
+  ['GBP', 'GBP — British Pound'],
+  ['JPY', 'JPY — Japanese Yen'],
+  ['CAD', 'CAD — Canadian Dollar'],
+  ['AUD', 'AUD — Australian Dollar'],
+];
+
 const Profile = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState({
-    name: '',
-    email: '',
-    currency: 'INR'
-  });
-  const [loading, setLoading] = useState(true);
+  const { user, setUser, refresh } = useAppShell();
+  const month = toMonthKey();
+
+  const [form, setForm] = useState({ name: '', currency: 'INR', monthlyBudget: '' });
+  const [overallBudget, setOverallBudget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  // The monthly-budget field maps to the `category: null` budget row for the
+  // current month, so it has to be loaded separately from the user profile.
+  const hydrate = useCallback(async () => {
+    if (!user) return;
+    let budget = null;
+    try {
+      const rows = await budgetApi.getBudgetsForMonth(user.id, month);
+      budget = (rows || []).find((row) => !row.category) || null;
+    } catch {
+      budget = null;
+    }
+    setOverallBudget(budget);
+    setForm({
+      name: user.name || '',
+      currency: user.currency || 'INR',
+      monthlyBudget: budget?.amount != null ? String(budget.amount) : '',
+    });
+  }, [user, month]);
 
   useEffect(() => {
-    fetchUserProfile();
-  }, []);
+    hydrate();
+  }, [hydrate]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const userData = await userApi.getCurrentUser();
-      setUser(userData);
-    } catch (err) {
-      setError('Failed to load profile');
-      if (err.response?.status === 401) {
-        navigate('/login');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (e) => {
-    setUser({ ...user, [e.target.name]: e.target.value });
+  const update = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
     setError('');
+    setSaved(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!form.name.trim()) {
+      setError('Your name cannot be empty.');
+      return;
+    }
+
     setSaving(true);
     setError('');
-
     try {
-      const updatedUser = await userApi.updateCurrentUser({
-        name: user.name,
-        currency: user.currency
+      const updated = await userApi.updateCurrentUser({
+        name: form.name.trim(),
+        currency: form.currency,
       });
-      setUser(updatedUser);
-      alert('Profile updated successfully!');
+      setUser(updated);
+
+      const amount = parseFloat(form.monthlyBudget);
+      if (form.monthlyBudget !== '' && (!amount || amount <= 0)) {
+        throw new Error('Monthly budget must be greater than zero.');
+      }
+      if (amount > 0) {
+        // Passing the existing id updates that row instead of adding a second
+        // overall budget for the same month.
+        await budgetApi.saveBudget({
+          ...(overallBudget?.id ? { id: overallBudget.id } : {}),
+          userId: user.id,
+          month,
+          category: null,
+          amount,
+        });
+      }
+
+      setSaved(true);
+      await refresh();
+      await hydrate();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      setError(err.response?.data?.message || err.message || 'Could not save your changes.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="profile-container">
-        <div className="profile-loading">
-          <Loader className="w-8 h-8 animate-spin text-emerald-600" />
-          <p className="text-white">Loading profile...</p>
+  return (
+    <div className="profile">
+      <div className="profile-identity">
+        <div className="profile-avatar">{initials(user?.name)}</div>
+        <div className="profile-identity-name">{user?.name || '—'}</div>
+        <div className="profile-identity-email">{user?.email || ''}</div>
+        <div className="profile-identity-pill">
+          {currencySymbol(user?.currency || 'INR')} {user?.currency || 'INR'}
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="profile-container">
-      <div className="profile-card">
-        {/* Header */}
-        <div className="profile-header">
-          <Link to="/dashboard" className="profile-back-button">
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
-          </Link>
-          <h1 className="profile-title">Profile Settings</h1>
+      <form className="profile-details" onSubmit={handleSubmit}>
+        <div>
+          <div className="profile-details-title">Account details</div>
+          <div className="profile-details-sub">Changes save to your account immediately.</div>
         </div>
 
-        {/* Avatar Section */}
-        <div className="profile-avatar-section">
-          <div className="profile-avatar">
-            <User className="w-12 h-12 text-emerald-600" />
+        <div className="profile-grid">
+          <div className="profile-field">
+            <label className="profile-label" htmlFor="profile-name">Full name</label>
+            <input
+              id="profile-name"
+              className="profile-control"
+              value={form.name}
+              onChange={(event) => update('name', event.target.value)}
+            />
           </div>
-          <h2 className="profile-form-title">Edit Profile</h2>
-          <p className="profile-form-subtitle">Update your personal information</p>
-        </div>
 
-        {/* Form */}
-        <form className="profile-form" onSubmit={handleSubmit}>
-          {error && (
-            <div className="profile-error">
-              {error}
-            </div>
-          )}
-
-          <div className="profile-form-group">
-            <Input
-              label="Email Address"
-              type="email"
-              value={user.email}
+          <div className="profile-field">
+            <label className="profile-label" htmlFor="profile-email">Email</label>
+            <input
+              id="profile-email"
+              className="profile-control disabled"
+              value={user?.email || ''}
               disabled
-              note="Email cannot be changed"
             />
+            <span className="profile-note">Email cannot be changed.</span>
           </div>
 
-          <div className="profile-form-group">
-            <Input
-              label="Full Name"
-              type="text"
-              name="name"
-              value={user.name}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-              required
-            />
-          </div>
-
-          <div className="profile-form-group">
-            <label className="profile-form-label">Currency</label>
+          <div className="profile-field">
+            <label className="profile-label" htmlFor="profile-currency">Currency</label>
             <select
-              name="currency"
-              value={user.currency}
-              onChange={handleChange}
-              className="profile-form-input"
+              id="profile-currency"
+              className="profile-control"
+              value={form.currency}
+              onChange={(event) => update('currency', event.target.value)}
             >
-              <option value="INR">INR - Indian Rupee</option>
-              <option value="USD">USD - US Dollar</option>
-              <option value="EUR">EUR - Euro</option>
-              <option value="GBP">GBP - British Pound</option>
-              <option value="JPY">JPY - Japanese Yen</option>
-              <option value="CAD">CAD - Canadian Dollar</option>
-              <option value="AUD">AUD - Australian Dollar</option>
+              {CURRENCIES.map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
             </select>
           </div>
 
-          <div className="profile-form-actions">
-            <Button
-              type="submit"
-              disabled={saving}
-              className="w-full"
-            >
-              {saving ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  Save Changes
-                </>
-              )}
-            </Button>
+          <div className="profile-field">
+            <label className="profile-label" htmlFor="profile-budget">
+              Monthly budget
+            </label>
+            <input
+              id="profile-budget"
+              className="profile-control"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Not set"
+              value={form.monthlyBudget}
+              onChange={(event) => update('monthlyBudget', event.target.value)}
+            />
+            <span className="profile-note">Overall cap for {month}. Tracked on the Budgets page.</span>
           </div>
-        </form>
-      </div>
+        </div>
+
+        {error && <div className="profile-error">{error}</div>}
+        {saved && !error && (
+          <div className="profile-success">
+            <Check size={16} />
+            Saved.
+          </div>
+        )}
+
+        <div className="profile-divider" />
+
+        <div className="profile-actions">
+          <button type="submit" className="profile-save" disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+          <button type="button" className="profile-cancel" onClick={hydrate} disabled={saving}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

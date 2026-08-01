@@ -179,5 +179,6 @@ expense-tracker/
 │
 ├── .gitignore
 ├── README.md                             # Root project README
-└── docker-compose.yml (optional, future)
+├── .env.example                        # Template for .env (DB credentials)
+└── docker-compose.yml                  # PostgreSQL + backend (docker compose up -d)
 

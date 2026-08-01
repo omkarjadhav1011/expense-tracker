@@ -1,84 +1,59 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { categoryIcon } from '../../lib/categoryVisuals';
+import { formatShortDate, formatSigned } from '../../lib/format';
 import './RecentTransactions.css';
 
-const RecentTransactions = ({ transactions }) => {
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  return (
-    <div className="recent-transactions">
-      <div className="transactions-header">
-        <h3 className="transactions-title">Recent Transactions</h3>
-        <Link to="/transactions" className="view-all-link">
-          View All
-          <ArrowUpRight className="w-4 h-4" />
-        </Link>
-      </div>
-
-      <div className="transactions-table">
-        <div className="table-header">
-          <div className="header-cell">Date</div>
-          <div className="header-cell">Category</div>
-          <div className="header-cell">Description</div>
-          <div className="header-cell">Amount</div>
-          <div className="header-cell">Type</div>
-        </div>
-
-        <div className="table-body">
-          {transactions && transactions.length > 0 ? (
-            transactions.map((transaction, index) => (
-              <div key={transaction.id || index} className="table-row">
-                <div className="table-cell date-cell">
-                  {formatDate(transaction.date || transaction.transactionDate)}
-                </div>
-                <div className="table-cell category-cell">
-                  <span className="category-badge">
-                    {transaction.category?.name || transaction.category || 'Uncategorized'}
-                  </span>
-                </div>
-                <div className="table-cell description-cell">
-                  {transaction.description || 'No description'}
-                </div>
-                <div className="table-cell amount-cell">
-                  <span className={`amount ${transaction.type === 'INCOME' ? 'income' : 'expense'}`}>
-                    {transaction.type === 'INCOME' ? (
-                      <ArrowUpRight className="w-3 h-3" />
-                    ) : (
-                      <ArrowDownRight className="w-3 h-3" />
-                    )}
-                    {formatCurrency(Math.abs(transaction.amount))}
-                  </span>
-                </div>
-                <div className="table-cell type-cell">
-                  <span className={`type-badge ${transaction.type.toLowerCase()}`}>
-                    {transaction.type}
-                  </span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-transactions">
-              <p>No recent transactions</p>
-            </div>
-          )}
-        </div>
-      </div>
+const RecentTransactions = ({ transactions = [], currency = 'INR', loading = false }) => (
+  <div className="recent-card">
+    <div className="recent-head">
+      <div className="recent-title">Recent activity</div>
+      <Link to="/transactions" className="recent-view-all">
+        View all
+        <ArrowRight size={14} />
+      </Link>
     </div>
-  );
-};
+
+    {loading ? (
+      <div className="recent-list">
+        {[0, 1, 2, 3].map((key) => (
+          <div key={key} className="recent-row">
+            <div className="ns-skeleton recent-skeleton-glyph" />
+            <div className="ns-skeleton recent-skeleton-line" />
+            <div className="ns-skeleton recent-skeleton-amount" />
+          </div>
+        ))}
+      </div>
+    ) : transactions.length === 0 ? (
+      <div className="recent-empty">Nothing logged in this period yet.</div>
+    ) : (
+      <div className="recent-list">
+        {transactions.map((transaction) => {
+          const Icon = categoryIcon(transaction.categoryName);
+          const income = transaction.type === 'INCOME';
+          return (
+            <div key={transaction.id} className="recent-row">
+              <span className={`recent-glyph${income ? ' income' : ''}`}>
+                <Icon size={16} />
+              </span>
+              <div className="recent-text">
+                <span className="recent-description">
+                  {transaction.description || transaction.categoryName}
+                </span>
+                <span className="recent-meta">
+                  {transaction.categoryName} · {formatShortDate(transaction.transactionDate)}
+                </span>
+              </div>
+              <span className={`recent-amount${income ? ' income' : ''}`}>
+                {formatSigned(transaction.amount, transaction.type, currency)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
 
 export default RecentTransactions;

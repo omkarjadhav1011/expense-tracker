@@ -1,89 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import dashboardApi from '../../api/dashboardApi';
+import React from 'react';
+import { formatMoney, formatMonthShort } from '../../lib/format';
 import './IncomeExpenseChart.css';
 
-const IncomeExpenseChart = () => {
-  const [timeRange, setTimeRange] = useState('6M');
-  const [chartData, setChartData] = useState([]);
+/**
+ * Paired income/expense bars, one column per month.
+ * `data` is the raw `/dashboard/monthly-trend` payload:
+ * [{ month: "2026-07", totalIncome, totalExpense }]
+ */
+const IncomeExpenseChart = ({ data = [], currency = 'INR', subtitle, loading = false }) => {
+  const peak = data.reduce(
+    (max, row) => Math.max(max, Number(row.totalIncome || 0), Number(row.totalExpense || 0)),
+    0,
+  );
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const months = timeRange === '6M' ? 6 : timeRange === '1Y' ? 12 : 24;
-        const response = await dashboardApi.getMonthlyTrend(months);
-        setChartData(response || []);
-      } catch (error) {
-        console.error('Error fetching trend data:', error);
-        // Fallback to placeholder data
-        setChartData([
-          { month: 'Jul', totalIncome: 3200, totalExpense: 2800 },
-          { month: 'Aug', totalIncome: 3500, totalExpense: 3100 },
-          { month: 'Sep', totalIncome: 2800, totalExpense: 2600 },
-          { month: 'Oct', totalIncome: 3800, totalExpense: 3300 },
-          { month: 'Nov', totalIncome: 3200, totalExpense: 2900 },
-          { month: 'Dec', totalIncome: 3600, totalExpense: 3100 }
-        ]);
-      }
-    };
-    loadData();
-  }, [timeRange]);
-
-  const currentData = chartData;
-  const maxValue = currentData.length > 0 ? Math.max(...currentData.flatMap(d => [d.totalIncome || 0, d.totalExpense || 0])) : 4000;
+  const heightOf = (value) => (peak > 0 ? `${(Number(value || 0) / peak) * 100}%` : '0%');
 
   return (
-    <div className="income-expense-chart">
-      <div className="chart-header">
-        <h3 className="chart-title">Income vs Expense Trend</h3>
-        <div className="chart-controls">
-          {['6M', '1Y', 'All'].map((range) => (
-            <button
-              key={range}
-              className={`control-btn ${timeRange === range ? 'active' : ''}`}
-              onClick={() => setTimeRange(range)}
-            >
-              {range}
-            </button>
+    <div className="trend-card">
+      <div className="trend-head">
+        <div>
+          <div className="trend-title">Income vs expense</div>
+          <div className="trend-sub">{subtitle || 'Monthly totals'}</div>
+        </div>
+        <div className="trend-legend">
+          <span className="trend-legend-item">
+            <span className="trend-swatch income" />
+            Income
+          </span>
+          <span className="trend-legend-item">
+            <span className="trend-swatch expense" />
+            Expense
+          </span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="ns-skeleton trend-skeleton" />
+      ) : data.length === 0 ? (
+        <div className="trend-empty">No monthly history yet.</div>
+      ) : (
+        <div className="trend-plot">
+          {data.map((row) => (
+            <div key={row.month} className="trend-column">
+              <div className="trend-bars">
+                <div
+                  className="trend-bar income"
+                  style={{ height: heightOf(row.totalIncome) }}
+                  title={`Income ${formatMoney(row.totalIncome, currency)}`}
+                />
+                <div
+                  className="trend-bar expense"
+                  style={{ height: heightOf(row.totalExpense) }}
+                  title={`Expense ${formatMoney(row.totalExpense, currency)}`}
+                />
+              </div>
+              <span className="trend-month">{formatMonthShort(row.month)}</span>
+            </div>
           ))}
         </div>
-      </div>
-
-      <div className="chart-container">
-        <div className="chart-placeholder">
-          <div className="bar-chart">
-            {currentData.map((item) => (
-              <div key={item.month} className="chart-bar-group">
-                <div className="bar-container">
-                  <div
-                    className="bar income-bar"
-                    style={{ height: `${((item.totalIncome || 0) / maxValue) * 100}%` }}
-                  >
-                    <span className="bar-value">${item.totalIncome || 0}</span>
-                  </div>
-                  <div
-                    className="bar expense-bar"
-                    style={{ height: `${((item.totalExpense || 0) / maxValue) * 100}%` }}
-                  >
-                    <span className="bar-value">${item.totalExpense || 0}</span>
-                  </div>
-                </div>
-                <span className="bar-label">{item.month}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="chart-legend">
-        <div className="legend-item">
-          <div className="legend-color income-color"></div>
-          <span className="legend-label">Income</span>
-        </div>
-        <div className="legend-item">
-          <div className="legend-color expense-color"></div>
-          <span className="legend-label">Expense</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
