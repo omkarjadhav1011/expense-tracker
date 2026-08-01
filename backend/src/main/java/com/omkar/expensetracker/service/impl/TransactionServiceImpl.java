@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.repository.specification.TransactionSpecification;
@@ -95,37 +94,14 @@ public class TransactionServiceImpl implements TransactionService {
         transactionRepository.delete(transaction);
     }
 
-//    @Override
-//    public List<TransactionResponse> getAllTransactions() {
-//
-//        User user = authUtil.getLoggedInUser();
-//
-//        return transactionRepository.findByUserOrderByTransactionDateDesc(user)
-//                .stream()
-//                .map(this::mapToResponse)
-//                .collect(Collectors.toList());
-//    }
-
-//    @Override
-//    public List<TransactionResponse> getTransactions(
-//            TransactionType type,
-//            LocalDate startDate,
-//            LocalDate endDate
-//    ) {
-//
-//        User user = authUtil.getLoggedInUser();
-//
-//        Specification<Transaction> spec =
-//                Specification
-//                        .where(TransactionSpecification.belongsToUser(user.getId()))
-//                        .and(TransactionSpecification.hasType(type))
-//                        .and(TransactionSpecification.hasDateBetween(startDate, endDate));
-//
-//        return transactionRepository.findAll(spec)
-//                .stream()
-//                .map(this::mapToResponse)
-//                .toList();
-//    }
+    @Override
+    public List<TransactionResponse> getTransactions(
+            TransactionType type,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        return getTransactions(type, startDate, endDate, null, null, null);
+    }
 
     @Override
     public List<TransactionResponse> getTransactions(
@@ -134,20 +110,7 @@ public class TransactionServiceImpl implements TransactionService {
             LocalDate endDate,
             Long categoryId
     ) {
-
-        User user = authUtil.getLoggedInUser();
-
-        Specification<Transaction> spec =
-                Specification
-                        .where(TransactionSpecification.belongsToUser(user.getId()))
-                        .and(TransactionSpecification.hasType(type))
-                        .and(TransactionSpecification.hasDateBetween(startDate, endDate))
-                        .and(TransactionSpecification.hasCategory(categoryId));
-
-        return transactionRepository.findAll(spec)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        return getTransactions(type, startDate, endDate, categoryId, null, null);
     }
 
 
@@ -199,7 +162,10 @@ public class TransactionServiceImpl implements TransactionService {
                         .and(TransactionSpecification.hasCategory(categoryId))
                         .and(TransactionSpecification.hasAmountBetween(minAmount, maxAmount));
 
-        return transactionRepository.findAll(spec)
+        // Newest first, matching the ordering the unfiltered list has always returned
+        Sort sort = Sort.by("transactionDate").descending();
+
+        return transactionRepository.findAll(spec, sort)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();

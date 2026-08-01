@@ -41,7 +41,7 @@ public class CategoryBudgetServiceImpl implements CategoryBudgetService {
                 .findById(request.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
 
-        if (!category.getUserId().equals(userId)) {
+        if (!category.getUser().getId().equals(userId)) {
             throw new RuntimeException("Unauthorized category access");
         }
 
