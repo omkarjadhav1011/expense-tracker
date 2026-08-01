@@ -4,7 +4,7 @@ import budgetApi from '../../api/budgetApi';
 import { useAppShell } from '../../app/AppShellContext';
 import ConfirmDialog from '../../components/ConfirmDialog/ConfirmDialog';
 import { colorForIndex } from '../../lib/categoryVisuals';
-import { formatMonthLabel, formatMoney, toMonthKey } from '../../lib/format';
+import { formatMonthLabel, formatMoney, toMonthKey, toMonthParts } from '../../lib/format';
 import './Budgets.css';
 
 const OVERALL = '__OVERALL__';
@@ -12,16 +12,23 @@ const OVERALL = '__OVERALL__';
 /**
  * Budgets screen.
  *
- * Caps come from `/budgets`, but spend is derived from the transaction ledger
- * rather than the backend's budget summary endpoints — those compute spend from
- * the legacy `expenses` table, which nothing in this app writes to, so they
- * would always report zero.
+ * The overall cap and the per-category caps are two separate resources
+ * (`/budgets/monthly` and `/budgets/category`), and the server requires the
+ * overall cap to exist first — it rejects category caps that would total more
+ * than it.
+ *
+ * Caps come from the server; spend is computed here from the shared transaction
+ * ledger, joined on `categoryId`. `/budgets/category/summary` returns the same
+ * numbers, but the ledger is already in context, so deriving locally avoids a
+ * round-trip and keeps these bars in step with the dashboard.
  */
 const Budgets = () => {
-  const { transactions, categories, currency, user } = useAppShell();
-  const month = toMonthKey();
+  const { transactions, categories, currency } = useAppShell();
+  const monthKey = toMonthKey();
+  const { month, year } = toMonthParts();
 
-  const [budgets, setBudgets] = useState([]);
+  const [monthlyBudget, setMonthlyBudget] = useState(null);
+  const [categoryBudgets, setCategoryBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -30,63 +37,57 @@ const Budgets = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const userId = user?.id;
-
   const loadBudgets = useCallback(async () => {
-    if (!userId) return;
     setLoading(true);
     try {
-      const rows = await budgetApi.getBudgetsForMonth(userId, month);
-      setBudgets(rows || []);
+      const [overall, perCategory] = await Promise.all([
+        budgetApi.getMonthlyBudget(month, year),
+        budgetApi.getCategoryBudgets(month, year),
+      ]);
+      setMonthlyBudget(overall);
+      setCategoryBudgets(perCategory || []);
       setError('');
     } catch {
-      setBudgets([]);
+      setMonthlyBudget(null);
+      setCategoryBudgets([]);
       setError('Could not load budgets.');
     } finally {
       setLoading(false);
     }
-  }, [userId, month]);
+  }, [month, year]);
 
   useEffect(() => {
     loadBudgets();
   }, [loadBudgets]);
 
-  // Actual spend this month, per category name, from the ledger.
-  const spendByCategory = useMemo(() => {
+  // Actual spend this month, per category id, from the ledger.
+  const spendByCategoryId = useMemo(() => {
     const totals = new Map();
     transactions
-      .filter((t) => t.type === 'EXPENSE' && (t.transactionDate || '').startsWith(month))
+      .filter((t) => t.type === 'EXPENSE' && (t.transactionDate || '').startsWith(monthKey))
       .forEach((t) => {
-        const name = t.categoryName || 'Uncategorised';
-        totals.set(name, (totals.get(name) || 0) + Number(t.amount || 0));
+        totals.set(t.categoryId, (totals.get(t.categoryId) || 0) + Number(t.amount || 0));
       });
     return totals;
-  }, [transactions, month]);
+  }, [transactions, monthKey]);
 
   const monthSpend = useMemo(
-    () => [...spendByCategory.values()].reduce((total, value) => total + value, 0),
-    [spendByCategory],
+    () => [...spendByCategoryId.values()].reduce((total, value) => total + value, 0),
+    [spendByCategoryId],
   );
 
-  const overallBudget = budgets.find((budget) => !budget.category) || null;
-  const categoryBudgets = budgets.filter((budget) => budget.category);
-
-  const categoryCapTotal = categoryBudgets.reduce(
-    (total, budget) => total + Number(budget.amount || 0),
-    0,
-  );
-  const overallCap = Number(overallBudget?.amount || 0) || categoryCapTotal;
+  const overallCap = Number(monthlyBudget?.amount || 0);
   const overallPct = overallCap > 0 ? Math.min(100, (monthSpend / overallCap) * 100) : 0;
 
   const rows = categoryBudgets.map((budget, index) => {
-    const spent = spendByCategory.get(budget.category) || 0;
-    const cap = Number(budget.amount || 0);
+    const spent = spendByCategoryId.get(budget.categoryId) || 0;
+    const cap = Number(budget.allocatedAmount || 0);
     const pct = cap > 0 ? Math.min(100, (spent / cap) * 100) : 0;
     const over = cap > 0 && spent > cap;
     const close = !over && pct >= 80;
     return {
       id: budget.id,
-      name: budget.category,
+      name: budget.categoryName,
       color: colorForIndex(index),
       spent,
       cap,
@@ -109,12 +110,21 @@ const Budgets = () => {
     setSaving(true);
     setError('');
     try {
-      await budgetApi.saveBudget({
-        userId,
-        month,
-        category: form.category === OVERALL ? null : form.category,
-        amount,
-      });
+      if (form.category === OVERALL) {
+        await budgetApi.saveMonthlyBudget({
+          month,
+          year,
+          amount,
+          currency: currency || 'INR',
+        });
+      } else {
+        await budgetApi.saveCategoryBudget({
+          categoryId: Number(form.category),
+          month,
+          year,
+          allocatedAmount: amount,
+        });
+      }
       setForm({ category: OVERALL, amount: '' });
       setFormOpen(false);
       await loadBudgets();
@@ -128,7 +138,7 @@ const Budgets = () => {
   const confirmDelete = async () => {
     setDeleting(true);
     try {
-      await budgetApi.deleteBudget(pendingDelete.id);
+      await budgetApi.deleteCategoryBudget(pendingDelete.id);
       setPendingDelete(null);
       await loadBudgets();
     } catch (err) {
@@ -144,7 +154,7 @@ const Budgets = () => {
         <div className="budget-overview-main">
           <div className="budget-overview-head">
             <span className="budget-overview-title">
-              Monthly budget used · {formatMonthLabel(month)}
+              Monthly budget used · {formatMonthLabel(monthKey)}
             </span>
             <span className="budget-overview-pct">
               {overallCap > 0 ? `${Math.round((monthSpend / overallCap) * 100)}% used` : 'No cap set'}
@@ -158,7 +168,7 @@ const Budgets = () => {
           </div>
           <span className="budget-overview-caption">
             {overallCap > 0
-              ? `${formatMoney(monthSpend, currency)} spent against ${formatMoney(overallCap, currency)} of caps`
+              ? `${formatMoney(monthSpend, currency)} spent against a ${formatMoney(overallCap, currency)} cap`
               : `${formatMoney(monthSpend, currency)} spent this month — set a cap to track it`}
           </span>
         </div>
@@ -200,7 +210,7 @@ const Budgets = () => {
               >
                 <option value={OVERALL}>Overall monthly budget</option>
                 {expenseCategories.map((category) => (
-                  <option key={category.id} value={category.name}>
+                  <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
@@ -236,7 +246,9 @@ const Budgets = () => {
             </div>
             <div className="budget-empty-title">No category budgets yet</div>
             <div className="budget-empty-body">
-              Set a cap per category and this page will track it against what you actually spent.
+              {overallCap > 0
+                ? 'Set a cap per category and this page will track it against what you actually spent.'
+                : 'Set the overall monthly budget first — category caps have to fit inside it.'}
             </div>
           </div>
         ) : (

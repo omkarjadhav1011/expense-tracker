@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 import userApi from '../../api/userApi';
 import budgetApi from '../../api/budgetApi';
 import { useAppShell } from '../../app/AppShellContext';
-import { currencySymbol, initials, toMonthKey } from '../../lib/format';
+import { currencySymbol, initials, toMonthParts } from '../../lib/format';
 import './Profile.css';
 
 const CURRENCIES = [
@@ -18,32 +18,29 @@ const CURRENCIES = [
 
 const Profile = () => {
   const { user, setUser, refresh } = useAppShell();
-  const month = toMonthKey();
+  const { month, year } = toMonthParts();
 
   const [form, setForm] = useState({ name: '', currency: 'INR', monthlyBudget: '' });
-  const [overallBudget, setOverallBudget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // The monthly-budget field maps to the `category: null` budget row for the
-  // current month, so it has to be loaded separately from the user profile.
+  // The monthly-budget field maps to this month's overall cap, which is a
+  // separate resource from the user profile and so has to be loaded separately.
   const hydrate = useCallback(async () => {
     if (!user) return;
     let budget = null;
     try {
-      const rows = await budgetApi.getBudgetsForMonth(user.id, month);
-      budget = (rows || []).find((row) => !row.category) || null;
+      budget = await budgetApi.getMonthlyBudget(month, year);
     } catch {
       budget = null;
     }
-    setOverallBudget(budget);
     setForm({
       name: user.name || '',
       currency: user.currency || 'INR',
       monthlyBudget: budget?.amount != null ? String(budget.amount) : '',
     });
-  }, [user, month]);
+  }, [user, month, year]);
 
   useEffect(() => {
     hydrate();
@@ -76,14 +73,13 @@ const Profile = () => {
         throw new Error('Monthly budget must be greater than zero.');
       }
       if (amount > 0) {
-        // Passing the existing id updates that row instead of adding a second
-        // overall budget for the same month.
-        await budgetApi.saveBudget({
-          ...(overallBudget?.id ? { id: overallBudget.id } : {}),
-          userId: user.id,
+        // Upserts on (month, year), so this updates the existing cap rather than
+        // adding a second one for the same month.
+        await budgetApi.saveMonthlyBudget({
           month,
-          category: null,
+          year,
           amount,
+          currency: form.currency,
         });
       }
 

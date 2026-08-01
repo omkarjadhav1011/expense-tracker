@@ -65,6 +65,13 @@ export const toIsoDate = (date) => {
 export const toMonthKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
+// The budget endpoints take month and year as separate integers rather than a
+// "YYYY-MM" key, so screens need both forms of the same month.
+export const toMonthParts = (date = new Date()) => ({
+  month: date.getMonth() + 1,
+  year: date.getFullYear(),
+});
+
 export const initials = (name) => {
   if (!name) return '?';
   return name

@@ -25,7 +25,12 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Guard against redirecting while already on /login — a failed login attempt
+    // that answered 401 would otherwise reload the page in a loop.
+    if (
+      error.response?.status === 401 &&
+      !window.location.pathname.startsWith('/login')
+    ) {
       // Token expired or invalid, redirect to login
       localStorage.removeItem('token');
       window.location.href = '/login';

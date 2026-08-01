@@ -58,40 +58,52 @@ DB_PASSWORD=<value from .env>
 
 Layering is `controller → service (interface) → service.impl → repository`, with `dto/request` and `dto/response` types crossing the controller boundary. Entities are mapped to DTOs inside the service impls (either a private `mapToResponse` or `util/MapperUtil`).
 
-**Current-user resolution.** JWT subject is the user's **email**. `util/AuthUtil.getLoggedInUser()` reads `SecurityContextHolder` and loads the `User` — this is the standard entry point used by Transaction, Category, and Dashboard services. `ExpenseServiceImpl` diverges: it takes a `userEmail` string parameter instead.
+**Current-user resolution.** JWT subject is the user's **email**. `util/AuthUtil.getLoggedInUser()` reads `SecurityContextHolder` and loads the `User` — this is the single entry point. `AuthService.getCurrentUserId()` is a thin convenience wrapper that delegates to it, used by the budget services which need only the id. Do not add a third implementation; two copies of "who is logged in" is how the ownership checks drifted apart before.
 
-**Per-user data scoping is manual.** There is no row-level security or tenant filter. Every repository method is explicitly user-scoped (`findByIdAndUser`, `findByUserAnd…`, `findByUser_Id…`). Any new query must be scoped the same way or it will leak across users.
+**Per-user data scoping is manual.** There is no row-level security or tenant filter. Every repository method is explicitly user-scoped (`findByIdAndUser`, `findByUserAnd…`, `findByUserId…`). Any new query must be scoped the same way or it will leak across users. Deletes must go through an ownership-checked lookup rather than the inherited `deleteById`.
 
-**Error handling.** Service code signals business errors with bare `RuntimeException("message")`. `GlobalExceptionHandler` maps *all* `RuntimeException` to **HTTP 400** with body `{"message": "..."}`, validation failures to 400 with a `errors` field map, and everything else to 500. Consequence: genuine server bugs that throw a RuntimeException surface as 400s.
+**Error handling.** Service code signals business errors with bare `RuntimeException("message")`. `GlobalExceptionHandler` maps *all* `RuntimeException` to **HTTP 400** with body `{"message": "..."}`, validation failures to 400 with an `errors` field map, missing/uncoercible request params and unreadable bodies to 400, and everything else to 500.
 
-**JWT configuration is hardcoded, not property-driven.** `security/JwtTokenProvider` reads `config/JwtConfig.SECRET_KEY` and `JwtConfig.EXPIRATION_TIME` (1 hour) — Java `static final` constants. The `spring.security.jwt.secret` / `expiration` keys in `application.yml` are dead config and changing them has no effect. `SecurityConfig` is stateless, CSRF-disabled, permits only `POST /api/auth/register`, `POST /api/auth/login`, and `/error`, and allows CORS from `http://localhost:*`.
+Two consequences worth knowing: genuine server bugs that throw a RuntimeException surface as 400s, and **not-found is 400, not 404** — there are no custom exception types, so the frontend cannot tell "deleted by someone else" from "validation failed". Every error body is built with `HashMap`, never `Map.of`, because `Map.of` rejects a null value and an exception with a null message would make the handler itself throw.
 
-**Registration side effect.** `AuthServiceImpl.registerUser` (the method `AuthController` actually calls — `register` exists but is unused) creates the user then calls `CategoryService.createDefaultCategoriesForUser`, seeding the categories in `util/DefaultCategoryProvider`. Those get `isDefault = true` and `CategoryServiceImpl.deleteCategory` refuses to delete them.
+**JWT configuration is property-driven.** `security/JwtTokenProvider` injects `spring.security.jwt.secret` and `spring.security.jwt.expiration` (24 hours) via `@Value`. HS256 requires a secret of **at least 32 bytes** — a shorter override fails fast with `WeakKeyException`. Override with `JWT_SECRET` / `JWT_EXPIRATION_MS`.
 
-### Two parallel money models — important
+`SecurityConfig` is stateless, CSRF-disabled, permits only `POST /api/auth/register`, `POST /api/auth/login`, and `/error`, and allows CORS from `http://localhost:*`. It installs an `authenticationEntryPoint` returning **401** and an `accessDeniedHandler` returning **403**, both with the same `{"message": "..."}` body the controllers use. Do not remove these: without them Spring falls back to `Http403ForbiddenEntryPoint`, an expired token answers 403, and the frontend's 401-triggered redirect to `/login` never fires.
 
-`Transaction` (table `transactions`, date field `transactionDate`, has a `TransactionType` of INCOME/EXPENSE) is the **live** model: it backs `TransactionController`, `DashboardController`, and the whole frontend.
+**Registration side effect.** `AuthServiceImpl.registerUser` rejects an already-registered email, then creates the user and calls `CategoryService.createDefaultCategoriesForUser`, seeding the categories in `util/DefaultCategoryProvider`. Those get `isDefault = true` and `CategoryServiceImpl.deleteCategory` refuses to delete them.
 
-`Expense` (table `expenses`, date field `date`, expense-only) is a **legacy parallel model** with no controller. It is still reachable through `ExpenseService`, and — critically — `BudgetServiceImpl` computes *all* budget spend from `ExpenseRepository`. So budgets are blind to transactions: creating a transaction never moves a budget's numbers. Keep this in mind before "fixing" budget totals; the underlying issue is the two models, not the arithmetic.
+### Transactions are the only money model
+
+`Transaction` (table `transactions`, date field `transactionDate`, `TransactionType` of INCOME/EXPENSE) is the single source of truth for money. It backs `TransactionController`, `DashboardController`, the budget summaries, and the whole frontend.
+
+Two dead ends were removed: a parallel `Expense` entity that no controller ever wrote to, and an older `Budget` entity that keyed categories by name string. If you find a reference to `Expense*`, `Budget` (singular), or the `/api/budgets/user/{userId}/…` routes, it is stale — the tables `expenses`, `budget` and `budgets` were dropped.
 
 ### Budget module specifics
 
-- `Budget.month` is a `String` in `"YYYY-MM"` form, parsed with `YearMonth.parse` into a first-day/last-day range.
-- `Budget.category` is a **category name String**, not a FK to `Category`. `category == null` means the overall monthly budget; non-null means a per-category budget.
-- `Budget.userId` is a raw `Long`, not a `@ManyToOne User` — unlike every other entity.
-- `usedAmount` is a denormalized cache refreshed by `ExpenseServiceImpl` calling `budgetService.updateUsedAmount` + `updateUsedAmountByCategory` after create and update (not after delete). The `/summary` endpoints recompute from expenses and ignore `usedAmount`.
-- `BudgetController` breaks the conventions used everywhere else: it accepts and returns the `Budget` **entity** rather than DTOs, and takes `userId` as a **path variable** instead of deriving it from the JWT — so any authenticated user can read another user's budgets. Prefer `AuthUtil` if reworking it.
+Two resources, both JWT-scoped, both taking `month` (1-12) and `year` as **separate integers** — not a `"YYYY-MM"` string:
+
+- `MonthlyBudget` (`/api/budgets/monthly`) — one overall cap per month, unique on `(user_id, month, year)`.
+- `CategoryBudget` (`/api/budgets/category`) — per-category caps, unique on `(user_id, category_id, month, year)`, keyed by a real `categoryId`.
+
+Behaviour that is easy to break:
+
+- **Both POSTs upsert** on their unique key, so saving twice updates rather than duplicating. Callers never send an `id`.
+- **A monthly cap must exist before any category cap**, and `CategoryBudgetServiceImpl` rejects a save whose category caps would total more than the monthly cap. Equal to the cap is allowed.
+- **`GET /budgets/monthly` returns 200 with an empty body when no cap is set** — "unset" is a normal state, not a 400. Don't reintroduce a not-found throw there; the Budgets and Profile screens rely on the null.
+- **Spend is always recomputed from the transaction ledger** via `util/BudgetSpendCalculator`, which wraps `TransactionRepository.getCategoryWiseBreakdown`. There is no cached `usedAmount`. Keep new spend calculations in that one class so the monthly summary, the category summary, and the dashboard cannot disagree.
+- Money is `BigDecimal` throughout these two entities; `percentageUsed` is rounded `HALF_UP` to 2 places.
+- Both entities store `userId` as a raw `Long` rather than a `@ManyToOne User`, unlike `Transaction` and `Category`.
 
 ### Entity style is inconsistent
 
-`User`, `Category`, `Budget` use Lombok (`@Getter/@Setter/@Builder`); `Transaction` and `Expense` have hand-written accessors and no builder. Match whichever entity you're editing rather than normalizing opportunistically.
+`User`, `Category`, `MonthlyBudget`, `CategoryBudget` use Lombok (`@Getter/@Setter/@Builder`); `Transaction` has hand-written accessors and no builder. The budget DTOs are hand-written too, while most others use `@Builder`. Match whichever file you're editing rather than normalizing opportunistically.
 
 ## Frontend architecture
 
 - **Feature-first**: `src/features/<feature>/<Component>.jsx` (auth, budget, dashboard, expense, profile). Shared UI lives in `src/components/<Name>/<Name>.jsx` and must be re-exported from `src/components/index.js`.
 - **Styling is per-component plain CSS**: each `.jsx` has a sibling `.css` it imports. Tailwind v4 is installed and `index.css` carries `@tailwind` directives, but the codebase does not use utility classes — follow the CSS-file convention.
 - **API layer**: one module per domain in `src/api/*Api.js`, all calling the shared `axiosInstance`. Its `baseURL` is hardcoded to `http://localhost:8080/api` (no env var / Vite proxy), so a backend port change means editing that file.
-- **Auth state is just `localStorage['token']`**. The request interceptor attaches `Bearer` from it; the response interceptor clears it and does a hard `window.location.href = '/login'` on any 401. `ProtectedRoute` checks token *presence* only — no decode, no expiry check — so an expired token renders the page until the first 401 bounces it.
+- **Auth state is just `localStorage['token']`**. The request interceptor attaches `Bearer` from it; the response interceptor clears it and does a hard `window.location.href = '/login'` on a 401 — unless the current path is already `/login`, which would otherwise reload in a loop. `ProtectedRoute` decodes the payload segment and treats a past `exp` as logged-out, so an expired session bounces before rendering rather than after the first failed request. That decode is a UX guard only; the backend still validates every token.
 - **Routes** are declared inline in `App.jsx`; `/` renders Login.
 
 ### Design system
@@ -110,13 +122,16 @@ Creating and editing a transaction both happen in `components/TransactionDrawer`
 
 Dashboard KPIs, the donut and the range filter are all computed client-side from the single `GET /transactions` list, so switching range does not refetch. Only the trend chart hits the server (`/dashboard/monthly-trend`).
 
-The Budgets screen reads caps from `/budgets` but computes *spend* from the transaction ledger, **not** from `/budgets/**/summary`. Those endpoints derive spend from the legacy `expenses` table (see "Two parallel money models" above), which nothing in this app writes to, so they would always report zero.
+The Budgets screen reads caps from `/budgets/monthly` and `/budgets/category`, then computes *spend* client-side from the shared ledger, joining on **`categoryId`**. `/budgets/category/summary` returns the same numbers server-side, so either source is correct; the ledger is already in context, so deriving locally avoids a round-trip and keeps the bars in step with the dashboard.
+
+**`GET /transactions` must keep returning a plain array.** `AppLayout` is the single fetch owner and calls `.filter` on the response, so wrapping it in a Spring `Page` envelope breaks every authenticated screen at once. Paginated access lives at `GET /transactions/paged`, which nothing consumes yet.
 
 ### Known frontend/backend contract gaps
 
 - `categoryApi.getAllCategories` fans out to two `?type=`-scoped calls and merges, because `GET /categories` requires the `type` request param.
 - There is no `PUT /categories/{id}` and no `GET /transactions/summary`; the corresponding api helpers were removed rather than left as dead calls.
-- `BudgetController` takes `userId` as a path variable, so `budgetApi` needs the id from `GET /users/me` — hence Budgets and Profile wait on `user` before loading caps.
+- `budgetApi.getMonthlySummary` / `getCategorySummary` and `dashboardApi.getSummary` / `getCategoryBreakdown` / `getRecentTransactions` and `transactionApi.getTransactionById` are defined but unused — those numbers are derived client-side from the ledger. Only `dashboardApi.getMonthlyTrend` hits the server.
+- The transaction filter params (`type`, `startDate`, `endDate`, `categoryId`, `minAmount`, `maxAmount`) exist on `GET /transactions` but no frontend code passes them; filtering is done client-side.
 
 Check the controller before assuming an `api/` helper works.
 

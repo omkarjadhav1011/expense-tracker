@@ -2,6 +2,8 @@ package com.omkar.expensetracker.dto.response;
 
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -9,9 +11,9 @@ import lombok.*;
 @Builder
 public class BudgetSummaryResponse {
 
-    private Double budget;          // Total budget
-    private Double spent;           // Total expenses
-    private Double remaining;       // budget - spent
-    private Double percentageUsed;  // (spent/budget)*100
-    private String status;          // OVER_BUDGET or UNDER_BUDGET
+    private BigDecimal budget;          // Monthly cap, 0 when none is set
+    private BigDecimal spent;           // Total EXPENSE transactions in the month
+    private BigDecimal remaining;       // budget - spent
+    private BigDecimal percentageUsed;  // (spent/budget)*100
+    private String status;              // OVER_BUDGET or UNDER_BUDGET
 }

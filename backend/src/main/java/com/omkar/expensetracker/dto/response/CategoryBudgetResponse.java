@@ -4,12 +4,20 @@ import java.math.BigDecimal;
 
 public class CategoryBudgetResponse {
 
+    private Long id;
     private Long categoryId;
     private String categoryName;
     private BigDecimal allocatedAmount;
 
     // getters & setters
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public Long getCategoryId() {
         return categoryId;

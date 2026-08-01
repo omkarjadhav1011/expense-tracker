@@ -7,15 +7,13 @@ import com.omkar.expensetracker.repository.UserRepository;
 import com.omkar.expensetracker.security.JwtTokenProvider;
 import com.omkar.expensetracker.service.AuthService;
 import com.omkar.expensetracker.service.CategoryService;
-import jakarta.transaction.Transactional;
+import com.omkar.expensetracker.util.AuthUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
@@ -26,33 +24,22 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final CategoryService categoryService;
+    private final AuthUtil authUtil;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtTokenProvider jwtTokenProvider,
-            CategoryService categoryService
+            CategoryService categoryService,
+            AuthUtil authUtil
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.categoryService = categoryService;
-    }
-
-    @Override
-    public void register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-        userRepository.save(user);
+        this.authUtil = authUtil;
     }
 
     @Override
@@ -74,6 +61,13 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void registerUser(RegisterRequest request) {
 
+        // Without this the users.email unique constraint fires instead, and
+        // GlobalExceptionHandler renders the raw Hibernate/PostgreSQL message
+        // straight into the signup form.
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already registered");
+        }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -85,21 +79,13 @@ public class AuthServiceImpl implements AuthService {
         categoryService.createDefaultCategoriesForUser(savedUser);
     }
 
+    /**
+     * Delegates to AuthUtil rather than reading SecurityContextHolder again, so
+     * there is exactly one implementation of "who is logged in". Two copies is how
+     * the ownership checks drifted apart in the first place.
+     */
     @Override
     public Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("Unauthenticated access");
-        }
-
-        String email = authentication.getName();
-
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"))
-                .getId();
+        return authUtil.getLoggedInUser().getId();
     }
-
 }
