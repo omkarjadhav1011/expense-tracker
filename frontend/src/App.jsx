@@ -1,15 +1,15 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./features/auth/Login";
 import Register from "./features/auth/Register";
 import Dashboard from "./features/dashboard/Dashboard";
 import Profile from "./features/profile/Profile";
+import Budgets from "./features/budget/Budgets";
 
-import AddTransaction from "./features/expense/AddTransaction";
-import EditTransaction from "./features/expense/EditTransaction";
 import TransactionList from "./features/expense/TransactionList";
-import AddCategory from "./features/expense/AddCategory";
+import Categories from "./features/expense/Categories";
 
+import AppLayout from "./components/AppLayout/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -19,13 +19,25 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        {/* Everything inside the shell shares one sidebar, header and drawer. */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/transactions" element={<TransactionList />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
 
-        <Route path="/transactions" element={<ProtectedRoute><TransactionList /></ProtectedRoute>} />
-        <Route path="/add-transaction" element={<ProtectedRoute><AddTransaction /></ProtectedRoute>} />
-        <Route path="/edit-transaction/:id" element={<ProtectedRoute><EditTransaction /></ProtectedRoute>} />
-        <Route path="/add-category" element={<ProtectedRoute><AddCategory /></ProtectedRoute>} />
+        {/* Routes the pre-redesign UI used; the drawer replaced those pages. */}
+        <Route path="/add-transaction" element={<Navigate to="/transactions" replace />} />
+        <Route path="/edit-transaction/:id" element={<Navigate to="/transactions" replace />} />
+        <Route path="/add-category" element={<Navigate to="/categories" replace />} />
 
         <Route path="/" element={<Login />} />
       </Routes>

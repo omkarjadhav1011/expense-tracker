@@ -29,12 +29,6 @@ const transactionApi = {
   deleteTransaction: async (id) => {
     await axiosInstance.delete(`/transactions/${id}`);
   },
-
-  // Get transaction summary (total income, expense, balance)
-  getTransactionSummary: async () => {
-    const response = await axiosInstance.get('/transactions/summary');
-    return response.data;
-  },
 };
 
 export default transactionApi;

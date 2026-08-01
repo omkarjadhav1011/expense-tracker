@@ -1,217 +1,158 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Eye, EyeOff, TrendingUp, DollarSign, PieChart, BarChart3 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../../api/authApi';
-import './Register.css';
+import AuthBrandPanel from './AuthBrandPanel';
+import mark from '../../assets/mark.png';
+import './Auth.css';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (event) => {
+    setForm({ ...form, [event.target.name]: event.target.value });
     setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
+
     setLoading(true);
     setError('');
 
     try {
-      const { confirmPassword, ...registerData } = formData;
-      await authApi.register(registerData);
-      alert('Registration successful! Please login.');
-      // window.location.href = '/login';
+      await authApi.register({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      });
+      setDone(true);
+      // Registration does not return a token, so send them to sign in.
+      setTimeout(() => navigate('/login', { replace: true }), 900);
     } catch (err) {
-  const data = err?.response?.data;
-
-  if (data?.errors) {
-    const firstErrorMessage = Object.values(data.errors)[0];
-    setError(firstErrorMessage);
-  }
-
-  else if (data?.message) {
-    setError(data.message);
-  }
-
-  else {
-    setError('Registration failed');
-  }
-}
-
- finally {
+      const data = err?.response?.data;
+      if (data?.errors) {
+        setError(Object.values(data.errors)[0]);
+      } else if (data?.message) {
+        setError(data.message);
+      } else {
+        setError('Registration failed. Try again.');
+      }
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="register-container">
-      {/* Left Panel - Branding */}
-      <div className="register-branding-panel">
-        <div className="register-branding-bg"></div>
+    <div className="auth">
+      <AuthBrandPanel />
 
-        <div>
-          <div className="register-logo">
-            <div className="register-logo-icon">
-              <TrendingUp className="w-7 h-7 text-emerald-600" />
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <div className="auth-mobile-lockup">
+            <img src={mark} alt="" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span className="auth-brand-name" style={{ color: 'var(--fg)' }}>BudgetWise</span>
+          </div>
+
+          <h2 className="auth-title">Create your account</h2>
+          <p className="auth-sub">A starter set of categories comes with it.</p>
+
+          {error && <div className="auth-error">{error}</div>}
+          {done && <div className="auth-success">Account created. Taking you to sign in…</div>}
+
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="register-name">Full name</label>
+              <input
+                id="register-name"
+                className="auth-control"
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Omkar Jadhav"
+                autoComplete="name"
+                required
+              />
             </div>
-            <span className="text-2xl font-bold text-white">ExpenseTracker</span>
-          </div>
 
-          <h1 className="register-title">
-            Take Control of<br />Your Finances
-          </h1>
-          <p className="register-subtitle">
-            Track expenses, analyze spending patterns, and achieve your financial goals with intelligent insights.
-          </p>
-        </div>
-
-        <div className="register-features">
-          <div className="register-feature-card">
-            <DollarSign className="register-feature-icon" />
-            <p className="register-feature-text">Smart Budgeting</p>
-          </div>
-          <div className="register-feature-card">
-            <PieChart className="register-feature-icon" />
-            <p className="register-feature-text">Visual Analytics</p>
-          </div>
-          <div className="register-feature-card">
-            <BarChart3 className="register-feature-icon" />
-            <p className="register-feature-text">Detailed Reports</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Register Form */}
-      <div className="register-form-panel">
-        <div className="register-form-container">
-          {/* Mobile Logo */}
-          <div className="register-mobile-logo">
-            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="register-email">Email address</label>
+              <input
+                id="register-email"
+                className="auth-control"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
             </div>
-            <span className="text-2xl font-bold text-white">ExpenseTracker</span>
-          </div>
 
-          <div className="register-form-card">
-            <h2 className="register-form-title">
-              Create Account
-            </h2>
-            <p className="register-form-subtitle">
-              Fill in your details to get started
-            </p>
-
-            {error && (
-              <div className="register-error-message">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div className="register-form-group">
-                <label className="register-form-label">
-                  Full Name
-                </label>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="register-password">Password</label>
+              <div className="auth-password">
                 <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
+                  id="register-password"
+                  className="auth-control"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={form.password}
                   onChange={handleChange}
-                  className="register-form-input"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-
-              <div className="register-form-group">
-                <label className="register-form-label">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="register-form-input"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-
-              <div className="register-form-group">
-                <label className="register-form-label">
-                  Password
-                </label>
-                <div className="register-password-container">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="register-form-input"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="register-password-toggle"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="register-form-group">
-                <label className="register-form-label">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="register-form-input"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                   required
                 />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((shown) => !shown)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="register-submit-button"
-              >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </button>
-            </form>
-
-            <div className="register-form-footer">
-              Already have an account?{' '}
-              <Link to="/login" className="register-form-link">
-                Sign In
-              </Link>
             </div>
-          </div>
 
-          <p className="register-security-note">
-          </p>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="register-confirm">Confirm password</label>
+              <input
+                id="register-confirm"
+                className="auth-control"
+                type="password"
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+
+            <button type="submit" className="auth-submit" disabled={loading || done}>
+              {loading ? 'Creating account…' : 'Create account'}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            Already have an account? <Link to="/login">Sign in</Link>
+          </div>
         </div>
       </div>
     </div>

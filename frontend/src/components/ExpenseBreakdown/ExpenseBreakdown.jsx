@@ -1,67 +1,55 @@
 import React from 'react';
+import { formatMoney } from '../../lib/format';
 import './ExpenseBreakdown.css';
 
-const ExpenseBreakdown = ({ data }) => {
-  // Use actual data if available, otherwise use placeholder
-  const categories = data && data.length > 0 ? data.map((item, index) => ({
-    name: item.categoryName,
-    amount: item.totalAmount,
-    percentage: Math.round((item.totalAmount / data.reduce((sum, cat) => sum + cat.totalAmount, 0)) * 100),
-    color: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'][index % 6]
-  })) : [
-    { name: 'Food & Dining', amount: 450, percentage: 35, color: '#ef4444' },
-    { name: 'Transportation', amount: 280, percentage: 22, color: '#f97316' },
-    { name: 'Entertainment', amount: 180, percentage: 14, color: '#eab308' },
-    { name: 'Utilities', amount: 150, percentage: 12, color: '#22c55e' },
-    { name: 'Other', amount: 200, percentage: 17, color: '#3b82f6' }
-  ];
+/**
+ * Donut + legend for spend by category.
+ * `slices` is [{ name, amount, percent, color }] already sorted and capped.
+ */
+const ExpenseBreakdown = ({ slices = [], total = 0, currency = 'INR', loading = false }) => {
+  // conic-gradient stops: each slice owns a contiguous arc.
+  const stops = slices.reduce((acc, slice) => {
+    const start = acc.length > 0 ? acc[acc.length - 1].end : 0;
+    const end = start + slice.percent;
+    acc.push({ end, stop: `${slice.color} ${start.toFixed(2)}% ${end.toFixed(2)}%` });
+    return acc;
+  }, []).map((entry) => entry.stop);
 
-  const totalAmount = categories.reduce((sum, cat) => sum + cat.amount, 0);
+  const donut =
+    stops.length > 0 ? `conic-gradient(${stops.join(',')})` : 'conic-gradient(var(--neutral-100) 0% 100%)';
 
   return (
-    <div className="expense-breakdown">
-      <div className="expense-breakdown-header">
-        <h3 className="expense-breakdown-title">Expense Breakdown</h3>
-        <span className="expense-breakdown-period">This Month</span>
+    <div className="breakdown-card">
+      <div>
+        <div className="breakdown-title">Where it went</div>
+        <div className="breakdown-sub">Spend by category</div>
       </div>
 
-      <div className="expense-breakdown-chart">
-        {/* Placeholder for donut chart */}
-        <div className="chart-placeholder">
-          <div className="donut-chart">
-            {categories.map((category, index) => (
-              <div
-                key={category.name}
-                className="donut-segment"
-                style={{
-                  background: category.color,
-                  transform: `rotate(${index * 72}deg)`
-                }}
-              />
-            ))}
-            <div className="donut-center">
-              <span className="donut-total">${totalAmount.toFixed(2)}</span>
-              <span className="donut-label">Total</span>
+      {loading ? (
+        <div className="ns-skeleton breakdown-skeleton" />
+      ) : slices.length === 0 ? (
+        <div className="breakdown-empty">No expenses in this period yet.</div>
+      ) : (
+        <div className="breakdown-body">
+          <div className="breakdown-donut" style={{ background: donut }}>
+            <div className="breakdown-donut-hole">
+              <span className="breakdown-total">{formatMoney(total, currency)}</span>
+              <span className="breakdown-total-label">spent</span>
             </div>
+          </div>
+
+          <div className="breakdown-legend">
+            {slices.map((slice) => (
+              <div key={slice.name} className="breakdown-row">
+                <span className="breakdown-dot" style={{ background: slice.color }} />
+                <span className="breakdown-name">{slice.name}</span>
+                <span className="breakdown-amount">{formatMoney(slice.amount, currency)}</span>
+                <span className="breakdown-pct">{Math.round(slice.percent)}%</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      <div className="expense-breakdown-legend">
-        {categories.map((category) => (
-          <div key={category.name} className="legend-item">
-            <div
-              className="legend-color"
-              style={{ backgroundColor: category.color }}
-            />
-            <div className="legend-info">
-              <span className="legend-name">{category.name}</span>
-              <span className="legend-amount">${category.amount}</span>
-            </div>
-            <span className="legend-percentage">{category.percentage}%</span>
-          </div>
-        ))}
-      </div>
+      )}
     </div>
   );
 };
