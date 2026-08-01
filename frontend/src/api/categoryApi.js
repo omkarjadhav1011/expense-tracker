@@ -7,21 +7,19 @@ const categoryApi = {
     return response.data;
   },
 
-  // Get all categories for current user
+  // Get all categories for current user. `GET /categories` requires the `type`
+  // request param, so both types are fetched and merged here.
   getAllCategories: async () => {
-    const response = await axiosInstance.get('/categories');
-    return response.data;
+    const [expense, income] = await Promise.all([
+      categoryApi.getCategoriesByType('EXPENSE'),
+      categoryApi.getCategoriesByType('INCOME'),
+    ]);
+    return [...(expense || []), ...(income || [])];
   },
 
   // Create a new category
   createCategory: async (categoryData) => {
     const response = await axiosInstance.post('/categories', categoryData);
-    return response.data;
-  },
-
-  // Update a category
-  updateCategory: async (id, categoryData) => {
-    const response = await axiosInstance.put(`/categories/${id}`, categoryData);
     return response.data;
   },
 

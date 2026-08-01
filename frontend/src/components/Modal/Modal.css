@@ -1,109 +1,73 @@
-/* Modal Component Styles */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  z-index: 90;
+  background: rgba(18, 22, 25, .5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  animation: modalFadeIn 0.2s ease-out;
+  padding: 24px;
+  animation: ns-fade var(--duration-base) var(--ease);
 }
 
 .modal-container {
-  background: #1e293b;
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  border: 1px solid #334155;
-  max-height: 90vh;
-  overflow: hidden;
-  animation: modalSlideIn 0.3s ease-out;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 100%;
+  background: var(--neutral-0);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  animation: ns-fade var(--duration-base) var(--ease);
 }
 
 .modal-small {
-  width: 90%;
   max-width: 400px;
 }
 
 .modal-medium {
-  width: 90%;
-  max-width: 600px;
+  max-width: 560px;
 }
 
 .modal-large {
-  width: 90%;
-  max-width: 800px;
+  max-width: 760px;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #334155;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: white;
   margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-snug);
+  color: var(--fg);
 }
 
 .modal-close-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  background: rgba(51, 65, 85, 0.5);
-  border: 1px solid #334155;
-  border-radius: 8px;
-  color: #64748b;
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
 }
 
 .modal-close-button:hover {
-  background: rgba(51, 65, 85, 0.8);
-  border-color: #475569;
-  color: #94a3b8;
-  transform: scale(1.05);
-}
-
-.modal-close-button:active {
-  transform: scale(0.95);
-  background: rgba(51, 65, 85, 0.9);
+  background: var(--neutral-100);
 }
 
 .modal-content {
-  padding: 2rem;
+  padding: 24px;
   overflow-y: auto;
-  max-height: calc(90vh - 80px);
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }

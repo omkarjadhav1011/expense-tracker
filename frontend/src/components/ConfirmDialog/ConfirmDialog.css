@@ -1,0 +1,93 @@
+.confirm-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 22, 25, .5);
+  animation: ns-fade var(--duration-base) var(--ease);
+}
+
+.confirm-card {
+  position: relative;
+  width: 400px;
+  max-width: calc(100% - 32px);
+  background: var(--neutral-0);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: ns-fade var(--duration-base) var(--ease);
+}
+
+.confirm-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--error-bg);
+  color: var(--error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: var(--tracking-snug);
+}
+
+.confirm-body {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--fg-muted);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.confirm-danger {
+  flex: 1;
+  text-align: center;
+  background: var(--error);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.confirm-danger:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.confirm-ghost {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-strong);
+  background: var(--neutral-0);
+  padding: 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.confirm-ghost:hover {
+  background: var(--neutral-50);
+}

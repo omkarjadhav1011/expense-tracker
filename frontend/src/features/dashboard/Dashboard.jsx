@@ -1,264 +1,266 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  TrendingUp,
-  User,
-  LogOut,
-  Settings,
-  ChevronDown,
-  Plus,
-  DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  Tag,
-  BarChart3,
-  Wallet,
-  Menu,
-  X
-} from 'lucide-react';
-import userApi from '../../api/userApi';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Download, PiggyBank, Receipt } from 'lucide-react';
 import dashboardApi from '../../api/dashboardApi';
-import Button from '../../components/Button/Button';
+import { useAppShell } from '../../app/AppShellContext';
 import SummaryCard from '../../components/SummaryCard/SummaryCard';
-import ExpenseBreakdown from '../../components/ExpenseBreakdown/ExpenseBreakdown';
 import IncomeExpenseChart from '../../components/IncomeExpenseChart/IncomeExpenseChart';
+import ExpenseBreakdown from '../../components/ExpenseBreakdown/ExpenseBreakdown';
 import RecentTransactions from '../../components/RecentTransactions/RecentTransactions';
+import { colorForIndex } from '../../lib/categoryVisuals';
+import { downloadCsv } from '../../lib/csv';
+import { formatMoney, toIsoDate } from '../../lib/format';
 import './Dashboard.css';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [user, setUser] = useState({ name: 'User', email: '' });
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    totalIncome: 0,
-    totalExpense: 0,
-    balance: 0,
-    monthlyIncome: 0,
-    monthlyExpense: 0,
-    monthlyBalance: 0
-  });
-  const [recentTransactions, setRecentTransactions] = useState([]);
-  const [categoryBreakdown, setCategoryBreakdown] = useState([]);
+const RANGES = [
+  { key: '1M', label: 'This month', months: 1 },
+  { key: '3M', label: '3 months', months: 3 },
+  { key: '6M', label: '6 months', months: 6 },
+  { key: '1Y', label: 'This year', months: 12 },
+];
 
-  useEffect(() => {
-    fetchUserData();
-    fetchDashboardData();
-  }, []);
+// A window of whole calendar months ending `offset` windows back from today.
+const monthWindow = (months, offset = 0) => {
+  const now = new Date();
+  const anchor = new Date(now.getFullYear(), now.getMonth() - offset * months, 1);
+  const start = new Date(anchor.getFullYear(), anchor.getMonth() - (months - 1), 1);
+  const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { start: toIsoDate(start), end: toIsoDate(end) };
+};
 
-  const fetchUserData = async () => {
-    try {
-      const userData = await userApi.getCurrentUser();
-      setUser(userData);
-    } catch (err) {
-      if (err.response?.status === 401) {
-        navigate('/login');
-      }
-    }
-  };
-
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch all dashboard data in parallel
-      const [summaryResponse, categoryBreakdownResponse, recentTransactionsResponse] = await Promise.all([
-        dashboardApi.getSummary(),
-        dashboardApi.getCategoryBreakdown('EXPENSE'),
-        dashboardApi.getRecentTransactions(5)
-      ]);
-
-      // Set summary data
-      setSummary({
-        totalIncome: summaryResponse.totalIncome || 0,
-        totalExpense: summaryResponse.totalExpense || 0,
-        balance: summaryResponse.balance || 0,
-        monthlyIncome: summaryResponse.totalIncome || 0, // Assuming monthly = total for now
-        monthlyExpense: summaryResponse.totalExpense || 0,
-        monthlyBalance: summaryResponse.balance || 0
-      });
-
-      // Set category breakdown data
-      setCategoryBreakdown(categoryBreakdownResponse || []);
-
-      // Set recent transactions
-      setRecentTransactions(recentTransactionsResponse || []);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      // Set default values if API fails
-      setSummary({
-        totalIncome: 0,
-        totalExpense: 0,
-        balance: 0,
-        monthlyIncome: 0,
-        monthlyExpense: 0,
-        monthlyBalance: 0
-      });
-      setRecentTransactions([]);
-      setCategoryBreakdown([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <div className="dashboard-loading">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-          <p className="text-white">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+const captionFor = ({ start, end }) => {
+  const from = new Date(`${start}T00:00:00`);
+  const to = new Date(`${end}T00:00:00`);
+  if (from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth()) {
+    return `1 – ${to.getDate()} ${to.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`;
   }
+  const fromLabel = from.toLocaleDateString('en-GB', {
+    month: 'short',
+    ...(from.getFullYear() === to.getFullYear() ? {} : { year: 'numeric' }),
+  });
+  const toLabel = to.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  return `${fromLabel} – ${toLabel}`;
+};
+
+const sumBy = (rows, type) =>
+  rows.filter((t) => t.type === type).reduce((total, t) => total + Number(t.amount || 0), 0);
+
+// Percent change against the previous window; null when there is no baseline.
+const percentDelta = (current, previous) => {
+  if (!previous) return null;
+  return ((current - previous) / previous) * 100;
+};
+
+const formatDelta = (value) =>
+  value === null ? 'No baseline' : `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+
+const Dashboard = () => {
+  const { transactions, currency, loading, openDrawer } = useAppShell();
+  const [range, setRange] = useState('1M');
+  const [trend, setTrend] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(true);
+
+  const months = RANGES.find((r) => r.key === range)?.months ?? 1;
+  const trendMonths = range === '1Y' ? 12 : 6;
+
+  // Refetches when the range widens to a year, and after the ledger changes.
+  useEffect(() => {
+    let cancelled = false;
+    dashboardApi
+      .getMonthlyTrend(trendMonths)
+      .then((rows) => {
+        if (!cancelled) setTrend(rows || []);
+      })
+      .catch(() => {
+        if (!cancelled) setTrend([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTrendLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [trendMonths, transactions]);
+
+  const period = useMemo(() => monthWindow(months), [months]);
+  const previousPeriod = useMemo(() => monthWindow(months, 1), [months]);
+
+  const inRange = useMemo(
+    () =>
+      transactions.filter(
+        (t) => t.transactionDate >= period.start && t.transactionDate <= period.end,
+      ),
+    [transactions, period],
+  );
+
+  const inPrevious = useMemo(
+    () =>
+      transactions.filter(
+        (t) => t.transactionDate >= previousPeriod.start && t.transactionDate <= previousPeriod.end,
+      ),
+    [transactions, previousPeriod],
+  );
+
+  const income = sumBy(inRange, 'INCOME');
+  const expense = sumBy(inRange, 'EXPENSE');
+  const balance = income - expense;
+  const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
+  const expenseCount = inRange.filter((t) => t.type === 'EXPENSE').length;
+
+  const incomeDelta = percentDelta(income, sumBy(inPrevious, 'INCOME'));
+  const expenseDelta = percentDelta(expense, sumBy(inPrevious, 'EXPENSE'));
+
+  // Top five expense categories, everything else rolled into "Other".
+  const slices = useMemo(() => {
+    const totals = new Map();
+    inRange
+      .filter((t) => t.type === 'EXPENSE')
+      .forEach((t) => {
+        const name = t.categoryName || 'Uncategorised';
+        totals.set(name, (totals.get(name) || 0) + Number(t.amount || 0));
+      });
+
+    const sorted = [...totals.entries()]
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const top = sorted.slice(0, 5);
+    const rest = sorted.slice(5).reduce((total, row) => total + row.amount, 0);
+    if (rest > 0) top.push({ name: 'Other', amount: rest });
+
+    const total = top.reduce((sum, row) => sum + row.amount, 0);
+    return top.map((row, index) => ({
+      ...row,
+      color: colorForIndex(index),
+      percent: total > 0 ? (row.amount / total) * 100 : 0,
+    }));
+  }, [inRange]);
+
+  const spendTotal = slices.reduce((total, slice) => total + slice.amount, 0);
+
+  const recent = useMemo(
+    () =>
+      [...inRange]
+        .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate))
+        .slice(0, 5),
+    [inRange],
+  );
+
+  const handleExport = () => {
+    downloadCsv(
+      `budgetwise-${period.start}-to-${period.end}.csv`,
+      ['Date', 'Description', 'Category', 'Type', 'Amount'],
+      [...inRange]
+        .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate))
+        .map((t) => [
+          t.transactionDate,
+          t.description || '',
+          t.categoryName || '',
+          t.type,
+          Number(t.amount || 0),
+        ]),
+    );
+  };
 
   return (
-    <div className="dashboard-container">
-      {/* Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
-        <div className="dashboard-sidebar-header">
-          <div className="dashboard-sidebar-logo">
-            <TrendingUp className="w-6 h-6 text-emerald-600" />
-            <span className="text-lg font-bold text-white">BudgetWise</span>
-          </div>
-          <button
-            className="dashboard-sidebar-toggle-mobile"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="dashboard-sidebar-nav">
-          <div className="dashboard-nav-item active">
-            <BarChart3 className="w-5 h-5" />
-            <span>Dashboard</span>
-          </div>
-          <div className="dashboard-nav-item" onClick={() => navigate('/transactions')}>
-            <Wallet className="w-5 h-5" />
-            <span>Transactions</span>
-          </div>
-          <div className="dashboard-nav-item">
-            <DollarSign className="w-5 h-5" />
-            <span>Budgets</span>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="dashboard-sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <main className="dashboard-main">
-        {/* Top Header with Profile */}
-        <header className="dashboard-top-header">
-          <button
-            className="dashboard-sidebar-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-
-          <div className="dashboard-header-space" />
-
-          {/* User Profile Dropdown */}
-          <div className="dashboard-profile-dropdown">
+    <div className="dash">
+      <div className="dash-toolbar">
+        <div className="dash-segment">
+          {RANGES.map((option) => (
             <button
-              className="dashboard-profile-button"
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              key={option.key}
+              type="button"
+              className={`dash-segment-option${range === option.key ? ' active' : ''}`}
+              onClick={() => setRange(option.key)}
             >
-              <div className="dashboard-profile-avatar-small">
-                <User className="w-5 h-5" />
-              </div>
-              <div className="dashboard-profile-info">
-                <p className="dashboard-profile-name-small">{user.name}</p>
-                <p className="dashboard-profile-email-small">{user.email}</p>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+              {option.label}
             </button>
-
-            {/* Dropdown Menu */}
-            {showProfileMenu && (
-              <div className="dashboard-profile-menu">
-                <Link to="/profile" className="dashboard-menu-item">
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </Link>
-                <button
-                  className="dashboard-menu-item logout"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* Page Title */}
-        <div className="dashboard-page-header">
-          <div className="dashboard-page-title-section">
-            <h1 className="dashboard-page-title">Dashboard</h1>
-            <p className="dashboard-page-subtitle">Track your financial progress and manage expenses.</p>
-          </div>
+          ))}
         </div>
+        <span className="dash-caption">{captionFor(period)}</span>
+        <div className="dash-toolbar-spacer" />
+        <button
+          type="button"
+          className="dash-ghost-button"
+          onClick={handleExport}
+          disabled={inRange.length === 0}
+        >
+          <Download size={15} />
+          Export CSV
+        </button>
+      </div>
 
-        {/* Summary Cards */}
-        <div className="dashboard-summary-section">
-          <div className="summary-cards-grid">
-            <SummaryCard
-              title="Total Income"
-              value={formatCurrency(summary.monthlyIncome)}
-              subtitle="This Month"
-              accentColor="green"
-            />
-            <SummaryCard
-              title="Total Expenses"
-              value={formatCurrency(summary.monthlyExpense)}
-              subtitle="This Month"
-              accentColor="red"
-            />
-            <SummaryCard
-              title="Net Balance"
-              value={`${summary.monthlyBalance >= 0 ? '+' : ''}${formatCurrency(summary.monthlyBalance)}`}
-              subtitle={summary.monthlyBalance >= 0 ? 'Surplus' : 'Deficit'}
-              accentColor="neutral"
-            />
+      <div className="dash-stats">
+        <SummaryCard
+          label="Income"
+          value={formatMoney(income, currency)}
+          icon={ArrowDownLeft}
+          tone="brand"
+          loading={loading}
+          delta={formatDelta(incomeDelta)}
+          deltaTone={incomeDelta === null ? 'muted' : incomeDelta >= 0 ? 'positive' : 'negative'}
+          foot="vs previous period"
+        />
+        <SummaryCard
+          label="Spend"
+          value={formatMoney(expense, currency)}
+          icon={ArrowUpRight}
+          tone="neutral"
+          loading={loading}
+          delta={formatDelta(expenseDelta)}
+          deltaTone={expenseDelta === null ? 'muted' : expenseDelta > 0 ? 'warning' : 'positive'}
+          foot="vs previous period"
+        />
+        <SummaryCard
+          label="Net saved"
+          value={formatMoney(balance, currency)}
+          icon={PiggyBank}
+          tone="brand"
+          accent={balance >= 0}
+          loading={loading}
+          delta={`${savingsRate}%`}
+          deltaTone={savingsRate >= 20 ? 'positive' : 'warning'}
+          foot="of income kept"
+        />
+        <SummaryCard
+          label="Transactions"
+          value={String(inRange.length)}
+          icon={Receipt}
+          tone="neutral"
+          loading={loading}
+          delta={formatMoney(expenseCount ? expense / expenseCount : 0, currency)}
+          deltaTone="muted"
+          foot="average expense"
+        />
+      </div>
+
+      <div className="dash-charts">
+        <IncomeExpenseChart
+          data={trend}
+          currency={currency}
+          loading={trendLoading}
+          subtitle={`Monthly totals — last ${trendMonths} months`}
+        />
+        <ExpenseBreakdown
+          slices={slices}
+          total={spendTotal}
+          currency={currency}
+          loading={loading}
+        />
+      </div>
+
+      <RecentTransactions transactions={recent} currency={currency} loading={loading} />
+
+      {!loading && transactions.length === 0 && (
+        <div className="dash-onboard">
+          <div className="dash-onboard-title">Your ledger is empty</div>
+          <div className="dash-onboard-body">
+            Log your first income or expense and every figure on this page starts filling in.
           </div>
+          <button type="button" className="dash-onboard-cta" onClick={() => openDrawer()}>
+            Add transaction
+          </button>
         </div>
-
-        {/* Analytics Section */}
-        <div className="dashboard-analytics-section">
-          <div className="analytics-grid">
-            <ExpenseBreakdown data={categoryBreakdown} />
-            <IncomeExpenseChart />
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="dashboard-transactions-section">
-          <RecentTransactions transactions={recentTransactions} />
-        </div>
-      </main>
+      )}
     </div>
   );
 };
