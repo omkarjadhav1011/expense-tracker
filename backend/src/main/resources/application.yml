@@ -17,8 +17,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   security:
     jwt:
-      secret: mySecretKey
-      expiration: 86400000  # 24 hours
+      # Read by JwtTokenProvider. HS256 needs at least 32 bytes, so any override
+      # must be that long or the app fails fast with a WeakKeyException.
+      secret: ${JWT_SECRET:expensetracker_super_secret_key_256_bits!}
+      expiration: ${JWT_EXPIRATION_MS:86400000}  # 24 hours
 
 server:
   port: 8080

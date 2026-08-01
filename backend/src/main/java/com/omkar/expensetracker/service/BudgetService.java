@@ -1,27 +1,23 @@
 package com.omkar.expensetracker.service;
 
+import com.omkar.expensetracker.dto.request.BudgetRequest;
+import com.omkar.expensetracker.dto.response.BudgetResponse;
 import com.omkar.expensetracker.dto.response.BudgetSummaryResponse;
 import com.omkar.expensetracker.dto.response.CategoryBudgetSummaryResponse;
-import com.omkar.expensetracker.entity.Budget;
 
 import java.util.List;
 
 public interface BudgetService {
 
-    Budget saveBudget(Budget budget);
+    BudgetResponse saveBudget(BudgetRequest request);
 
-    List<Budget> getBudgetsForUser(Long userId);
+    List<BudgetResponse> getBudgetsForUser();
 
-    List<Budget> getBudgetsForMonth(Long userId, String month);
+    List<BudgetResponse> getBudgetsForMonth(String month);
 
     void deleteBudget(Long id);
 
-    BudgetSummaryResponse getMonthlySummary(Long userId, String month);
+    BudgetSummaryResponse getMonthlySummary(String month);
 
-    List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(Long userId, String month);
-
-    void updateUsedAmount(Long userId, String month);
-
-    void updateUsedAmountByCategory(Long userId, String month, String category);
-
+    List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(String month);
 }

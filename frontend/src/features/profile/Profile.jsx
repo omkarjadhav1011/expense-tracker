@@ -21,7 +21,6 @@ const Profile = () => {
   const month = toMonthKey();
 
   const [form, setForm] = useState({ name: '', currency: 'INR', monthlyBudget: '' });
-  const [overallBudget, setOverallBudget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -32,12 +31,11 @@ const Profile = () => {
     if (!user) return;
     let budget = null;
     try {
-      const rows = await budgetApi.getBudgetsForMonth(user.id, month);
+      const rows = await budgetApi.getBudgetsForMonth(month);
       budget = (rows || []).find((row) => !row.category) || null;
     } catch {
       budget = null;
     }
-    setOverallBudget(budget);
     setForm({
       name: user.name || '',
       currency: user.currency || 'INR',
@@ -76,15 +74,9 @@ const Profile = () => {
         throw new Error('Monthly budget must be greater than zero.');
       }
       if (amount > 0) {
-        // Passing the existing id updates that row instead of adding a second
-        // overall budget for the same month.
-        await budgetApi.saveBudget({
-          ...(overallBudget?.id ? { id: overallBudget.id } : {}),
-          userId: user.id,
-          month,
-          category: null,
-          amount,
-        });
+        // The server upserts on (month, category), so the existing overall cap is
+        // updated rather than duplicated.
+        await budgetApi.saveBudget({ month, category: null, amount });
       }
 
       setSaved(true);

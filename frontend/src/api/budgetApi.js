@@ -1,23 +1,23 @@
 import axiosInstance from './axiosInstance';
 
-// NOTE: BudgetController takes userId as a path variable rather than deriving it
-// from the JWT, so every call here needs the id from `GET /users/me`.
+// The user is derived from the JWT on the server, so no id is passed here.
 const budgetApi = {
   // Budgets the user has set for a "YYYY-MM" month. A null `category` is the
   // overall monthly cap; a non-null one is a per-category cap.
-  getBudgetsForMonth: async (userId, month) => {
-    const response = await axiosInstance.get(`/budgets/user/${userId}/${month}`);
+  getBudgetsForMonth: async (month) => {
+    const response = await axiosInstance.get('/budgets', { params: { month } });
     return response.data;
   },
 
-  getAllBudgets: async (userId) => {
-    const response = await axiosInstance.get(`/budgets/user/${userId}`);
+  getAllBudgets: async () => {
+    const response = await axiosInstance.get('/budgets');
     return response.data;
   },
 
-  // Creates a budget row. The endpoint accepts the Budget entity directly.
-  saveBudget: async (budget) => {
-    const response = await axiosInstance.post('/budgets', budget);
+  // Upserts on (month, category), so saving the same pair twice updates the
+  // existing cap rather than adding a duplicate row.
+  saveBudget: async ({ month, category, amount }) => {
+    const response = await axiosInstance.post('/budgets', { month, category, amount });
     return response.data;
   },
 

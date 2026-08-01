@@ -1,215 +1,237 @@
 package com.omkar.expensetracker.service.impl;
 
+import com.omkar.expensetracker.dto.request.BudgetRequest;
+import com.omkar.expensetracker.dto.response.BudgetResponse;
 import com.omkar.expensetracker.dto.response.BudgetSummaryResponse;
 import com.omkar.expensetracker.dto.response.CategoryBudgetSummaryResponse;
 import com.omkar.expensetracker.entity.Budget;
-import com.omkar.expensetracker.entity.Expense;
+import com.omkar.expensetracker.entity.User;
+import com.omkar.expensetracker.enums.TransactionType;
 import com.omkar.expensetracker.repository.BudgetRepository;
-import com.omkar.expensetracker.repository.ExpenseRepository;
+import com.omkar.expensetracker.repository.TransactionRepository;
 import com.omkar.expensetracker.service.BudgetService;
+import com.omkar.expensetracker.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import java.util.TreeMap;
 
+/**
+ * Spend is derived from the transaction ledger.
+ *
+ * This used to read from ExpenseRepository, but the `expenses` table has no
+ * controller and no write path anywhere in the application, so every summary
+ * reported spent = 0 regardless of what the user had recorded. The legacy Expense
+ * stack is gone; transactions are the single source of truth for money.
+ */
 @Service
 @RequiredArgsConstructor
 public class BudgetServiceImpl implements BudgetService {
 
-    // Repositories to interact with the database
     private final BudgetRepository budgetRepository;
-    private final ExpenseRepository expenseRepository;
+    private final TransactionRepository transactionRepository;
+    private final AuthUtil authUtil;
 
-    // Save a new budget
+    // ------------------------------------------------------------------------
+    // WRITES
+    // ------------------------------------------------------------------------
+
+    /**
+     * Upserts on (user, month, category). Saving the same month+category twice
+     * used to create a second row, after which the Optional finder below threw
+     * IncorrectResultSizeDataAccessException on every subsequent read.
+     */
     @Override
-    public Budget saveBudget(Budget budget) {
-        budget.setUsedAmount(0.0); // initially nothing spent
-        return budgetRepository.save(budget);
+    @Transactional
+    public BudgetResponse saveBudget(BudgetRequest request) {
+
+        Long userId = authUtil.getLoggedInUser().getId();
+        String month = normaliseMonth(request.getMonth());
+        String category = blankToNull(request.getCategory());
+
+        Budget budget = findExisting(userId, month, category)
+                .orElseGet(() -> Budget.builder()
+                        .userId(userId)
+                        .month(month)
+                        .category(category)
+                        .build());
+
+        budget.setAmount(request.getAmount());
+
+        return toResponse(budgetRepository.save(budget));
     }
 
-    // Get all budgets for a user
     @Override
-    public List<Budget> getBudgetsForUser(Long userId) {
-        return budgetRepository.findByUserId(userId);
-    }
-
-    // Get all budgets for a given month
-    @Override
-    public List<Budget> getBudgetsForMonth(Long userId, String month) {
-        return budgetRepository.findByUserIdAndMonth(userId, month);
-    }
-
-    // Delete a budget
-    @Override
+    @Transactional
     public void deleteBudget(Long id) {
-        budgetRepository.deleteById(id);
+        Long userId = authUtil.getLoggedInUser().getId();
+
+        Budget budget = budgetRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new RuntimeException("Budget not found"));
+
+        budgetRepository.delete(budget);
     }
 
     // ------------------------------------------------------------------------
-    // 1️⃣ MONTHLY SUMMARY (total budget vs total expense)
+    // READS
+    // ------------------------------------------------------------------------
+
+    @Override
+    public List<BudgetResponse> getBudgetsForUser() {
+        Long userId = authUtil.getLoggedInUser().getId();
+        return budgetRepository.findByUserIdOrderByMonthDesc(userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<BudgetResponse> getBudgetsForMonth(String month) {
+        Long userId = authUtil.getLoggedInUser().getId();
+        return budgetRepository.findByUserIdAndMonth(userId, normaliseMonth(month))
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // ------------------------------------------------------------------------
+    // 1️⃣ MONTHLY SUMMARY (total budget vs total spend)
     // ------------------------------------------------------------------------
     @Override
-    public BudgetSummaryResponse getMonthlySummary(Long userId, String month) {
+    public BudgetSummaryResponse getMonthlySummary(String month) {
 
-        // Get all budgets for this month
-        List<Budget> budgets = budgetRepository.findByUserIdAndMonth(userId, month);
+        Long userId = authUtil.getLoggedInUser().getId();
+        String key = normaliseMonth(month);
 
-        // Add all budget amounts
-        Double totalBudget = budgets.stream()
+        double totalBudget = budgetRepository.findByUserIdAndMonth(userId, key)
+                .stream()
                 .map(Budget::getAmount)
                 .filter(a -> a != null)
                 .mapToDouble(Double::doubleValue)
                 .sum();
 
-        // Convert "2026-01" into actual date range (1st to last day)
-        YearMonth ym = YearMonth.parse(month);
-        LocalDate start = ym.atDay(1);
-        LocalDate end = ym.atEndOfMonth();
-
-        // Find all expenses inside this date range
-        List<Expense> expenses =
-                expenseRepository.findByUser_IdAndDateBetween(userId, start, end);
-
-        // Add all expenses
-        Double totalSpent = expenses.stream()
-                .map(e -> e.getAmount().doubleValue())
+        // Sum the same per-category breakdown the category summary uses, so the two
+        // endpoints can never disagree about what was spent.
+        double totalSpent = spendByCategory(userId, key).values()
+                .stream()
                 .mapToDouble(Double::doubleValue)
                 .sum();
 
-        // Calculate remaining amount
-        Double remaining = totalBudget - totalSpent;
-
-        // Calculate percentage used
         double percentage = totalBudget == 0 ? 0 : (totalSpent / totalBudget) * 100;
 
-        // Check if user is over budget
-        String status = totalSpent > totalBudget ? "OVER_BUDGET" : "UNDER_BUDGET";
-
-        // Return clean summary object
         return BudgetSummaryResponse.builder()
                 .budget(totalBudget)
                 .spent(totalSpent)
-                .remaining(remaining)
+                .remaining(totalBudget - totalSpent)
                 .percentageUsed(percentage)
-                .status(status)
+                .status(totalSpent > totalBudget ? "OVER_BUDGET" : "UNDER_BUDGET")
                 .build();
     }
 
     // ------------------------------------------------------------------------
-    // 2️⃣ CATEGORY-WISE SUMMARY (budget vs expense per category)
+    // 2️⃣ CATEGORY-WISE SUMMARY (budget vs spend per category)
     // ------------------------------------------------------------------------
     @Override
-    public List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(Long userId, String month) {
+    public List<CategoryBudgetSummaryResponse> getCategoryWiseSummary(String month) {
 
-        // Get all budgets for the month BUT only with category (ignore monthly)
-        List<Budget> budgets =
-                budgetRepository.findByUserIdAndMonth(userId, month)
-                        .stream()
-                        .filter(b -> b.getCategory() != null)
-                        .toList();
+        Long userId = authUtil.getLoggedInUser().getId();
+        String key = normaliseMonth(month);
 
-        // Convert year-month to actual date range
-        YearMonth ym = YearMonth.parse(month);
-        LocalDate start = ym.atDay(1);
-        LocalDate end = ym.atEndOfMonth();
+        // Only per-category caps; the overall cap belongs to getMonthlySummary.
+        List<Budget> budgets = budgetRepository.findByUserIdAndMonth(userId, key)
+                .stream()
+                .filter(b -> b.getCategory() != null)
+                .toList();
 
-        // Get all expenses inside the month
-        List<Expense> expenses =
-                expenseRepository.findByUser_IdAndDateBetween(userId, start, end);
+        Map<String, Double> spentByCategory = spendByCategory(userId, key);
 
-        // Group expenses by category and sum the values
-        Map<String, Double> spentByCategory = expenses.stream()
-                .collect(Collectors.groupingBy(
-                        e -> e.getCategory().getName(),
-                        Collectors.summingDouble(e -> e.getAmount().doubleValue())
-                ));
-
-        // For each budget, compare with actual spent
         return budgets.stream()
                 .map(budget -> {
-
-                    double budgetAmount = budget.getAmount();
+                    // Budget.amount is a nullable Double; unboxing it directly threw an
+                    // NPE whose null message then broke the exception handler itself.
+                    double budgetAmount = budget.getAmount() == null ? 0.0 : budget.getAmount();
                     double spent = spentByCategory.getOrDefault(budget.getCategory(), 0.0);
-                    double remaining = budgetAmount - spent;
                     double percentage = budgetAmount == 0 ? 0 : (spent / budgetAmount) * 100;
-                    String status = spent > budgetAmount ? "OVER_BUDGET" : "UNDER_BUDGET";
 
                     return CategoryBudgetSummaryResponse.builder()
                             .category(budget.getCategory())
                             .budget(budgetAmount)
                             .spent(spent)
-                            .remaining(remaining)
+                            .remaining(budgetAmount - spent)
                             .percentageUsed(percentage)
-                            .status(status)
+                            .status(spent > budgetAmount ? "OVER_BUDGET" : "UNDER_BUDGET")
                             .build();
                 })
                 .toList();
     }
 
     // ------------------------------------------------------------------------
-    // 3️⃣ UPDATE used amount for monthly budget
+    // HELPERS
     // ------------------------------------------------------------------------
-    @Override
-    public void updateUsedAmount(Long userId, String month) {
 
-        // Convert month to date range
+    /**
+     * Expense totals per category name for the month, keyed case-insensitively.
+     *
+     * Budgets join to spend by category *name*, and the old code compared
+     * case-sensitively here but case-insensitively when refreshing the cached
+     * usedAmount — so the two paths could disagree. One comparison rule now.
+     */
+    private Map<String, Double> spendByCategory(Long userId, String month) {
         YearMonth ym = YearMonth.parse(month);
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
 
-        // Get all expenses in this month
-        List<Expense> expenses =
-                expenseRepository.findByUser_IdAndDateBetween(userId, start, end);
+        Map<String, Double> totals = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-        // Total expenses of month
-        double totalSpent = expenses.stream()
-                .map(e -> e.getAmount().doubleValue())
-                .mapToDouble(Double::doubleValue)
-                .sum();
+        // Returns rows of [categoryId, categoryName, SUM(amount)].
+        for (Object[] row : transactionRepository.getCategoryWiseBreakdown(
+                userId, TransactionType.EXPENSE, start, end)) {
+            String name = (String) row[1];
+            double amount = row[2] == null ? 0.0 : ((Number) row[2]).doubleValue();
+            totals.merge(name, amount, Double::sum);
+        }
 
-        // Update monthly (overall) budget only where category is null
-        budgetRepository.findByUserIdAndMonth(userId, month)
-                .stream()
-                .filter(b -> b.getCategory() == null)
-                .forEach(b -> {
-                    b.setUsedAmount(totalSpent);
-                    budgetRepository.save(b);
-                });
+        return totals;
     }
 
-    // ------------------------------------------------------------------------
-    // 4️⃣ UPDATE used amount for specific category
-    // ------------------------------------------------------------------------
-    @Override
-    public void updateUsedAmountByCategory(Long userId, String month, String category) {
+    private Optional<Budget> findExisting(Long userId, String month, String category) {
+        return category == null
+                ? budgetRepository.findByUserIdAndMonthAndCategoryIsNull(userId, month)
+                : budgetRepository.findByUserIdAndMonthAndCategoryIgnoreCase(userId, month, category);
+    }
 
-        // Convert month to date range
-        YearMonth ym = YearMonth.parse(month);
-        LocalDate start = ym.atDay(1);
-        LocalDate end = ym.atEndOfMonth();
+    /**
+     * Rejects an unparseable month up front. YearMonth.parse would otherwise throw
+     * DateTimeParseException deeper in, surfacing a raw java.time message.
+     */
+    private String normaliseMonth(String month) {
+        if (month == null || month.isBlank()) {
+            throw new RuntimeException("Month is required in YYYY-MM format");
+        }
+        try {
+            return YearMonth.parse(month.trim()).toString();
+        } catch (DateTimeParseException ex) {
+            throw new RuntimeException("Month must be in YYYY-MM format");
+        }
+    }
 
-        // Get only the expenses of this category
-        List<Expense> expenses =
-                expenseRepository.findByUser_IdAndDateBetween(userId, start, end)
-                        .stream()
-                        .filter(e -> e.getCategory().getName().equalsIgnoreCase(category))
-                        .toList();
+    private String blankToNull(String category) {
+        return category == null || category.isBlank() ? null : category.trim();
+    }
 
-        // Total expenses for this category
-        double spent = expenses.stream()
-                .map(e -> e.getAmount().doubleValue())
-                .mapToDouble(Double::doubleValue)
-                .sum();
-
-        // Update the corresponding category budget
-        budgetRepository.findByUserIdAndMonthAndCategory(userId, month, category)
-                .ifPresent(budget -> {
-                    budget.setUsedAmount(spent);
-                    budgetRepository.save(budget);
-                });
+    private BudgetResponse toResponse(Budget budget) {
+        return BudgetResponse.builder()
+                .id(budget.getId())
+                .month(budget.getMonth())
+                .category(budget.getCategory())
+                .amount(budget.getAmount())
+                .build();
     }
 }

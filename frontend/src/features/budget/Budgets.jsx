@@ -12,13 +12,13 @@ const OVERALL = '__OVERALL__';
 /**
  * Budgets screen.
  *
- * Caps come from `/budgets`, but spend is derived from the transaction ledger
- * rather than the backend's budget summary endpoints — those compute spend from
- * the legacy `expenses` table, which nothing in this app writes to, so they
- * would always report zero.
+ * Caps come from `/budgets`. Spend is computed here from the shared transaction
+ * ledger rather than from `/budgets/categories-summary` — that endpoint now
+ * reports the same numbers, but the ledger is already in context, so deriving
+ * locally avoids a round-trip and keeps these bars in step with the dashboard.
  */
 const Budgets = () => {
-  const { transactions, categories, currency, user } = useAppShell();
+  const { transactions, categories, currency } = useAppShell();
   const month = toMonthKey();
 
   const [budgets, setBudgets] = useState([]);
@@ -30,13 +30,10 @@ const Budgets = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const userId = user?.id;
-
   const loadBudgets = useCallback(async () => {
-    if (!userId) return;
     setLoading(true);
     try {
-      const rows = await budgetApi.getBudgetsForMonth(userId, month);
+      const rows = await budgetApi.getBudgetsForMonth(month);
       setBudgets(rows || []);
       setError('');
     } catch {
@@ -45,7 +42,7 @@ const Budgets = () => {
     } finally {
       setLoading(false);
     }
-  }, [userId, month]);
+  }, [month]);
 
   useEffect(() => {
     loadBudgets();
@@ -110,7 +107,6 @@ const Budgets = () => {
     setError('');
     try {
       await budgetApi.saveBudget({
-        userId,
         month,
         category: form.category === OVERALL ? null : form.category,
         amount,
